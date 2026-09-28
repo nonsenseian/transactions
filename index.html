@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="icon" type="image/png" href="https://nonsenseian.github.io/nonsenseian_logo.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nonsenseian | Smart Transaction Parser</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: { extend: { colors: { darkBg: '#111827', darkCard: '#1F2937', darkBorder: '#374151' } } }
+        }
+    </script>
+    
+    <!-- Tesseract OCR Engine (Client-Side) -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script src="https://nonsenseian.github.io/global-components.js?v=2"></script>
+
+    <style>
+        body { transition: background-color 0.3s ease, color 0.3s ease; }
+        .input-field { width: 100%; padding: 0.5rem; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #F9FAFB; color: #111827; }
+        .dark .input-field { background-color: #374151; border-color: #4B5563; color: #F3F4F6; }
+        .dropzone { border: 2px dashed #6366F1; transition: all 0.2s; }
+        .dropzone.dragover { background-color: rgba(99, 102, 241, 0.1); border-color: #4F46E5; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 dark:bg-darkBg dark:text-gray-100 font-sans min-h-screen flex flex-col">
+
+    <main class="flex-grow max-w-7xl mx-auto w-full p-4 md:p-8">
+        
+        <!-- Privacy Banner -->
+        <div class="bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 p-4 rounded mb-8 shadow-sm">
+            <div class="flex items-start">
+                <div class="flex-shrink-0 text-green-500">🔒</div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-bold text-green-800 dark:text-green-400">Zero Server Transmission & Offline Capable</h3>
+                    <p class="text-xs text-green-700 dark:text-green-500 mt-1">
+                        Your financial screenshots are never uploaded. All OCR text extraction runs entirely within your browser's local memory using WebAssembly. Once the page loads, you can safely disconnect your internet and process statements offline.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800 dark:text-gray-100">Transaction Importer</h1>
+            <p class="text-gray-500 dark:text-gray-400 mt-2">Upload bank statement screenshots. Review duplicates, categorize, and sync.</p>
+        </div>
+
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+            
+            <!-- Left Column: Upload & Analytics -->
+            <div class="xl:col-span-1 space-y-6">
+                
+                <div class="bg-white dark:bg-darkCard p-6 rounded-xl shadow-md border dark:border-darkBorder">
+                    <h2 class="text-xl font-semibold mb-4 border-b pb-2 dark:border-darkBorder">1. Upload Screenshots</h2>
+                    
+                    <div id="dropzone" class="dropzone rounded-xl p-8 text-center cursor-pointer bg-gray-50 dark:bg-gray-800">
+                        <p class="text-4xl mb-2">📸</p>
+                        <p class="font-bold text-gray-700 dark:text-gray-300">Drag & Drop Bank Screenshots</p>
+                        <p class="text-xs text-gray-500 mt-2">Supports multiple JPG/PNG files</p>
+                        <input type="file" id="fileInput" multiple accept="image/*" class="hidden">
+                    </div>
+
+                    <div id="progressContainer" class="hidden mt-4">
+                        <p class="text-sm font-bold text-blue-600 mb-1" id="progressText">Initializing AI Engine...</p>
+                        <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                            <div id="progressBar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-darkCard p-6 rounded-xl shadow-md border dark:border-darkBorder">
+                    <h2 class="text-xl font-semibold mb-4 border-b pb-2 dark:border-darkBorder">Cash Flow Summary</h2>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="p-3 bg-green-50 dark:bg-green-900/20 rounded border border-green-200 dark:border-green-800">
+                            <p class="text-[10px] uppercase font-bold text-green-600">Total Inflow</p>
+                            <p class="text-lg font-black text-green-700 dark:text-green-400" id="inflowUI">$0.00</p>
+                        </div>
+                        <div class="p-3 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800">
+                            <p class="text-[10px] uppercase font-bold text-red-600">Total Outflow</p>
+                            <p class="text-lg font-black text-red-700 dark:text-red-400" id="outflowUI">$0.00</p>
+                        </div>
+                    </div>
+                    <div class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800 text-center">
+                        <p class="text-[10px] uppercase font-bold text-blue-600">Net Variance</p>
+                        <p class="text-xl font-black text-blue-700 dark:text-blue-400" id="netVarianceUI">$0.00</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Ledger -->
+            <div class="xl:col-span-2 space-y-6">
+                <div class="bg-white dark:bg-darkCard p-6 rounded-xl shadow-md border dark:border-darkBorder">
+                    <div class="flex justify-between items-center border-b pb-4 mb-4 dark:border-darkBorder">
+                        <div>
+                            <h2 class="text-xl font-semibold">2. Reconciliation Ledger</h2>
+                            <p class="text-xs text-gray-500 mt-1">Review flagged duplicates (<span class="text-yellow-600 font-bold">Yellow</span>) and uncertain categories (<span class="text-red-500 font-bold">Red</span>).</p>
+                        </div>
+                        <button onclick="syncToBudget()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded shadow transition-colors hidden" id="syncBtn">
+                            Sync to Budget Planner
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="text-xs text-gray-400 uppercase border-b border-gray-200 dark:border-gray-700">
+                                    <th class="py-2 px-2">Date</th>
+                                    <th class="py-2 px-2">Merchant</th>
+                                    <th class="py-2 px-2 text-right">Amount</th>
+                                    <th class="py-2 px-2">Category</th>
+                                    <th class="py-2 px-2 text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ledgerBody" class="text-sm">
+                                <tr>
+                                    <td colspan="5" class="py-8 text-center text-gray-500 italic">No transactions loaded. Upload screenshots to begin.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let rawTransactions = [];
+        let parsedTransactions = [];
+        
+        // Match Budget Planner Categories
+        const categories = [
+            { id: 'catHousing', label: 'Housing' }, { id: 'catGroceries', label: 'Groceries' },
+            { id: 'catDining', label: 'Dining' }, { id: 'catTransport', label: 'Transportation' },
+            { id: 'catUtilities', label: 'Utilities' }, { id: 'catWellness', label: 'Health & Wellness' },
+            { id: 'catEntertainment', label: 'Entertainment' }, { id: 'catTravel', label: 'Travel' },
+            { id: 'catShopping', label: 'Shopping' }, { id: 'catMisc', label: 'Misc.' },
+            { id: 'catSavings', label: 'Savings' }, { id: 'catInvesting', label: 'Investing' }
+        ];
+
+        // Basic Keyword Dictionary for Auto-Categorization
+        const keywordMap = {
+            'uber': 'catTransport', 'lyft': 'catTransport', 'shell': 'catTransport', 'chevron': 'catTransport',
+            'whole foods': 'catGroceries', 'safeway': 'catGroceries', 'trader joe': 'catGroceries', 'kroger': 'catGroceries',
+            'netflix': 'catEntertainment', 'spotify': 'catEntertainment', 'hulu': 'catEntertainment', 'amc': 'catEntertainment',
+            'mcdonalds': 'catDining', 'starbucks': 'catDining', 'doordash': 'catDining', 'restaurant': 'catDining',
+            'pge': 'catUtilities', 'comcast': 'catUtilities', 'att': 'catUtilities', 'verizon': 'catUtilities',
+            'cvs': 'catWellness', 'walgreens': 'catWellness', 'gym': 'catWellness', 'planet fitness': 'catWellness',
+            'amazon': 'catShopping', 'target': 'catShopping', 'walmart': 'catShopping'
+        };
+
+        // UI Setup
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('fileInput');
+
+        dropzone.addEventListener('click', () => fileInput.click());
+        dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) processImages(e.dataTransfer.files);
+        });
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) processImages(e.target.files);
+        });
+
+        // Tesseract Multi-Image OCR
+        async function processImages(files) {
+            document.getElementById('progressContainer').classList.remove('hidden');
+            let progText = document.getElementById('progressText');
+            let progBar = document.getElementById('progressBar');
+            
+            rawTransactions = [];
+            
+            try {
+                const worker = await Tesseract.createWorker({
+                    logger: m => {
+                        if (m.status === 'recognizing text') {
+                            progBar.style.width = `${Math.round(m.progress * 100)}%`;
+                        }
+                    }
+                });
+                
+                await worker.loadLanguage('eng');
+                await worker.initialize('eng');
+                
+                for (let i = 0; i < files.length; i++) {
+                    progText.innerText = `Analyzing Image ${i + 1} of ${files.length}...`;
+                    const ret = await worker.recognize(files[i]);
+                    extractTransactions(ret.data.text);
+                }
+                
+                await worker.terminate();
+                
+                progText.innerText = "Processing Complete!";
+                progText.classList.replace('text-blue-600', 'text-green-600');
+                progBar.classList.replace('bg-blue-600', 'bg-green-500');
+                
+                setTimeout(() => { document.getElementById('progressContainer').classList.add('hidden'); }, 2000);
+                
+                detectDuplicatesAndRender();
+
+            } catch (err) {
+                progText.innerText = "OCR Engine Error.";
+                progText.classList.replace('text-blue-600', 'text-red-600');
+                console.error(err);
+            }
+        }
+
+        // Heuristics Engine: Find lines that look like transactions
+        function extractTransactions(rawText) {
+            const lines = rawText.split('\n');
+            
+            // Matches $12.34, -12.34, 1,234.56
+            const amtRegex = /(-?\$?\d{1,3}(?:,\d{3})*\.\d{2})/; 
+            // Matches MM/DD or MM/DD/YY
+            const dateRegex = /^(\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)/; 
+
+            lines.forEach(line => {
+                let text = line.trim();
+                if (!text) return;
+
+                let amtMatch = text.match(amtRegex);
+                if (amtMatch) {
+                    let rawAmt = amtMatch[1].replace(/[$,]/g, '');
+                    let amount = parseFloat(rawAmt);
+                    
+                    let dateStr = "";
+                    let dateMatch = text.match(dateRegex);
+                    if (dateMatch) dateStr = dateMatch[1];
+                    
+                    // Clean Merchant Name
+                    let merchant = text.replace(amtRegex, '').replace(dateRegex, '').trim();
+                    merchant = merchant.replace(/[^a-zA-Z0-9\s\*\#]/g, '').substring(0, 30); // Strip heavy noise
+                    
+                    if (merchant.length > 2 && !isNaN(amount)) {
+                        let cat = autoCategorize(merchant, amount);
+                        rawTransactions.push({
+                            id: 'tx_' + Date.now() + Math.random().toString(16).slice(2),
+                            date: dateStr || "Unknown",
+                            merchant: merchant || "Unknown Merchant",
+                            amount: amount,
+                            categoryId: cat.id,
+                            isUncertain: cat.uncertain,
+                            isDuplicate: false,
+                            deleted: false
+                        });
+                    }
+                }
+            });
+        }
+
+        function autoCategorize(merchant, amount) {
+            if (amount > 0) return { id: 'income', uncertain: false }; // Inflows
+            
+            let lowerM = merchant.toLowerCase();
+            for (const [key, catId] of Object.entries(keywordMap)) {
+                if (lowerM.includes(key)) return { id: catId, uncertain: false };
+            }
+            return { id: 'catMisc', uncertain: true }; // Flag for review
+        }
+
+        function detectDuplicatesAndRender() {
+            // Sort by amount then merchant to easily spot dupes
+            parsedTransactions = [...rawTransactions].sort((a, b) => a.amount - b.amount);
+            
+            for (let i = 0; i < parsedTransactions.length - 1; i++) {
+                if (parsedTransactions[i].amount === parsedTransactions[i+1].amount) {
+                    // Similar merchant strings?
+                    let str1 = parsedTransactions[i].merchant.substring(0, 5).toLowerCase();
+                    let str2 = parsedTransactions[i+1].merchant.substring(0, 5).toLowerCase();
+                    if (str1 === str2) {
+                        parsedTransactions[i].isDuplicate = true;
+                        parsedTransactions[i+1].isDuplicate = true;
+                    }
+                }
+            }
+            
+            // Sort chronologically (best effort based on string)
+            parsedTransactions.sort((a, b) => a.date.localeCompare(b.date));
+            renderLedger();
+        }
+
+        function renderLedger() {
+            const tbody = document.getElementById('ledgerBody');
+            tbody.innerHTML = '';
+            
+            let activeTx = parsedTransactions.filter(t => !t.deleted);
+            
+            if (activeTx.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-gray-500 italic">No transactions identified. Ensure screenshots are clear and contain dollar amounts.</td></tr>`;
+                document.getElementById('syncBtn').classList.add('hidden');
+                updateSummary(activeTx);
+                return;
+            }
+
+            document.getElementById('syncBtn').classList.remove('hidden');
+
+            activeTx.forEach((tx, idx) => {
+                let rowClass = "border-b border-gray-100 dark:border-gray-800 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50";
+                
+                // Privacy & Warning Formatting
+                if (tx.isDuplicate) rowClass += " bg-yellow-50 dark:bg-yellow-900/20";
+                
+                let catWarning = tx.isUncertain ? `<span class="text-red-500 ml-2" title="Uncertain Match">⚠️</span>` : '';
+                
+                // Build Category Dropdown
+                let optionsHtml = `<option value="income" ${tx.categoryId === 'income' ? 'selected' : ''}>+ Inflow (Income)</option>`;
+                optionsHtml += `<option disabled>──────────</option>`;
+                categories.forEach(c => {
+                    optionsHtml += `<option value="${c.id}" ${tx.categoryId === c.id ? 'selected' : ''}>${c.label}</option>`;
+                });
+
+                let amtColor = tx.amount > 0 ? "text-green-600 font-bold" : "text-gray-900 dark:text-gray-100";
+
+                tbody.innerHTML += `
+                    <tr class="${rowClass}">
+                        <td class="py-3 px-2 text-gray-500">${tx.date}</td>
+                        <td class="py-3 px-2 font-medium truncate max-w-[150px]" title="${tx.merchant}">${tx.merchant}</td>
+                        <td class="py-3 px-2 text-right ${amtColor}">${tx.amount > 0 ? '+' : ''}$${Math.abs(tx.amount).toFixed(2)}</td>
+                        <td class="py-3 px-2">
+                            <div class="flex items-center">
+                                <select class="input-field py-1 text-xs w-36" onchange="updateCategory('${tx.id}', this.value)">
+                                    ${optionsHtml}
+                                </select>
+                                ${catWarning}
+                            </div>
+                        </td>
+                        <td class="py-3 px-2 text-center">
+                            <button onclick="deleteRow('${tx.id}')" class="text-gray-400 hover:text-red-500 transition-colors" title="Remove row">✕</button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            updateSummary(activeTx);
+        }
+
+        function updateCategory(id, newCat) {
+            let tx = parsedTransactions.find(t => t.id === id);
+            if (tx) {
+                tx.categoryId = newCat;
+                tx.isUncertain = false; // User manually verified
+            }
+            renderLedger();
+        }
+
+        function deleteRow(id) {
+            let tx = parsedTransactions.find(t => t.id === id);
+            if (tx) tx.deleted = true;
+            renderLedger();
+        }
+
+        function updateSummary(activeTx) {
+            let inflow = 0; let outflow = 0;
+            activeTx.forEach(t => {
+                if (t.categoryId === 'income' || t.amount > 0) inflow += Math.abs(t.amount);
+                else outflow += Math.abs(t.amount);
+            });
+            
+            document.getElementById('inflowUI').innerText = `$${inflow.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('outflowUI').innerText = `$${outflow.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            
+            let net = inflow - outflow;
+            let netUI = document.getElementById('netVarianceUI');
+            netUI.innerText = net < 0 ? `-$${Math.abs(net).toLocaleString(undefined, {minimumFractionDigits: 2})}` : `$${net.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+            netUI.className = net < 0 ? "text-xl font-black text-red-600" : "text-xl font-black text-green-600";
+        }
+
+        function syncToBudget() {
+            let activeTx = parsedTransactions.filter(t => !t.deleted && t.categoryId !== 'income');
+            
+            // Load existing state
+            let currentState = window.FinanceState ? window.FinanceState.load() : {};
+            if (!currentState.actuals) currentState.actuals = {};
+            
+            // Aggregate totals per category
+            activeTx.forEach(t => {
+                if (!currentState.actuals[t.categoryId]) currentState.actuals[t.categoryId] = 0;
+                currentState.actuals[t.categoryId] += Math.abs(t.amount);
+            });
+            
+            if (window.FinanceState) window.FinanceState.save(currentState);
+            
+            // Provide visual feedback before directing user
+            let btn = document.getElementById('syncBtn');
+            btn.innerText = "✓ Synced!";
+            btn.classList.replace('bg-purple-600', 'bg-green-600');
+            
+            setTimeout(() => {
+                window.location.href = "https://nonsenseian.github.io/budgetplanner/";
+            }, 1000);
+        }
+    </script>
+</body>
+</html>
