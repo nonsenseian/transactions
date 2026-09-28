@@ -53,21 +53,23 @@
             <p class="text-gray-500 dark:text-gray-400 mt-2">Upload bank statement screenshots. Review duplicates, categorize, and sync.</p>
         </div>
 
-        <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        <!-- Main Application Layout -->
+        <div class="flex flex-col gap-8">
             
-            <!-- Left Column: Upload & Analytics -->
-            <div class="xl:col-span-1 space-y-6">
+            <!-- Top Row: Upload & Analytics -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 
-                <div class="bg-white dark:bg-darkCard p-6 rounded-xl shadow-md border dark:border-darkBorder">
-                    <h2 class="text-xl font-semibold mb-4 border-b pb-2 dark:border-darkBorder">1. Upload Statements</h2>
-                    
-                    <div id="dropzone" class="dropzone rounded-xl p-8 text-center cursor-pointer bg-gray-50 dark:bg-gray-800">
-                        <p class="text-4xl mb-2">📄</p>
-                        <p class="font-bold text-gray-700 dark:text-gray-300">Drag & Drop Bank Statements</p>
-                        <p class="text-xs text-gray-500 mt-2">Supports PDF, JPG, and PNG files</p>
-                        <input type="file" id="fileInput" multiple accept="image/*,application/pdf" class="hidden">
+                <!-- Upload Statements -->
+                <div class="bg-white dark:bg-darkCard p-6 rounded-xl shadow-md border dark:border-darkBorder flex flex-col justify-between">
+                    <div>
+                        <h2 class="text-xl font-semibold mb-4 border-b pb-2 dark:border-darkBorder">1. Upload Statements</h2>
+                        <div id="dropzone" class="dropzone rounded-xl p-8 text-center cursor-pointer bg-gray-50 dark:bg-gray-800">
+                            <p class="text-4xl mb-2">📄</p>
+                            <p class="font-bold text-gray-700 dark:text-gray-300">Drag & Drop Bank Statements</p>
+                            <p class="text-xs text-gray-500 mt-2">Supports PDF, JPG, and PNG files</p>
+                            <input type="file" id="fileInput" multiple accept="image/*,application/pdf" class="hidden">
+                        </div>
                     </div>
-
                     <div id="progressContainer" class="hidden mt-4">
                         <p class="text-sm font-bold text-blue-600 mb-1" id="progressText">Initializing Engine...</p>
                         <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
@@ -76,40 +78,44 @@
                     </div>
                 </div>
 
-                <div class="bg-white dark:bg-darkCard p-6 rounded-xl shadow-md border dark:border-darkBorder">
-                    <h2 class="text-xl font-semibold mb-2 border-b pb-2 dark:border-darkBorder">Cash Flow Summary</h2>
-                    <p class="text-xs text-gray-500 mb-4 font-medium" id="dateRangeUI">Date Range: --</p>
-                    
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="p-3 bg-green-50 dark:bg-green-900/20 rounded border border-green-200 dark:border-green-800">
-                            <p class="text-[10px] uppercase font-bold text-green-600">Total Inflow</p>
-                            <p class="text-lg font-black text-green-700 dark:text-green-400" id="inflowUI">$0.00</p>
-                        </div>
-                        <div class="p-3 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800">
-                            <p class="text-[10px] uppercase font-bold text-red-600">Total Outflow</p>
-                            <p class="text-lg font-black text-red-700 dark:text-red-400" id="outflowUI">$0.00</p>
-                        </div>
-                    </div>
-                    <div class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800 text-center">
-                        <p class="text-[10px] uppercase font-bold text-blue-600">Net Variance</p>
-                        <p class="text-xl font-black text-blue-700 dark:text-blue-400" id="netVarianceUI">$0.00</p>
-                    </div>
-
-                    <!-- Sankey Diagram Container -->
-                    <div class="mt-6 border-t pt-4 dark:border-darkBorder">
-                        <h3 class="text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Transaction Flow</h3>
-                        <div id="sankey_basic" class="w-full" style="height: 350px;"></div>
+                <!-- Cash Flow Summary -->
+                <div class="bg-white dark:bg-darkCard p-6 rounded-xl shadow-md border dark:border-darkBorder flex flex-col justify-between">
+                    <div>
+                        <h2 class="text-xl font-semibold mb-2 border-b pb-2 dark:border-darkBorder">Cash Flow Summary</h2>
+                        <p class="text-xs text-gray-500 mb-4 font-medium" id="dateRangeUI">Date Range: --</p>
                         
-                        <button onclick="exportToCSV()" class="mt-4 w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 text-sm font-bold rounded shadow transition-colors flex justify-center items-center gap-2">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                            Export to CSV
-                        </button>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="p-3 bg-green-50 dark:bg-green-900/20 rounded border border-green-200 dark:border-green-800">
+                                <p class="text-[10px] uppercase font-bold text-green-600">Total Inflow</p>
+                                <p class="text-lg font-black text-green-700 dark:text-green-400" id="inflowUI">$0.00</p>
+                            </div>
+                            <div class="p-3 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800">
+                                <p class="text-[10px] uppercase font-bold text-red-600">Total Outflow</p>
+                                <p class="text-lg font-black text-red-700 dark:text-red-400" id="outflowUI">$0.00</p>
+                            </div>
+                        </div>
+                        <div class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800 text-center">
+                            <p class="text-[10px] uppercase font-bold text-blue-600">Net Variance</p>
+                            <p class="text-xl font-black text-blue-700 dark:text-blue-400" id="netVarianceUI">$0.00</p>
+                        </div>
                     </div>
                 </div>
             </div>
-            
-            <!-- Right Column: Ledgers -->
-            <div class="xl:col-span-2 space-y-6" id="ledgerContainer">
+
+            <!-- Second Row: Sankey Diagram & Export -->
+            <div class="bg-white dark:bg-darkCard p-6 rounded-xl shadow-md border dark:border-darkBorder">
+                <div class="flex justify-between items-center mb-4 border-b pb-2 dark:border-darkBorder">
+                    <h3 class="text-xl font-semibold">Transaction Flow</h3>
+                    <button onclick="exportToCSV()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 text-sm font-bold rounded shadow transition-colors flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        Export to CSV
+                    </button>
+                </div>
+                <div id="sankey_basic" class="w-full min-h-[300px]"></div>
+            </div>
+
+            <!-- Third Row: Ledgers -->
+            <div id="ledgerContainer" class="space-y-6">
                 <div class="bg-white dark:bg-darkCard p-6 rounded-xl shadow-md border dark:border-darkBorder">
                     <div class="flex justify-between items-center border-b pb-4 mb-4 dark:border-darkBorder">
                         <div>
@@ -117,12 +123,8 @@
                             <p class="text-xs text-gray-500 mt-1">Review your categorized transactions. Click and drag across rows to multi-select.</p>
                         </div>
                         <div class="flex gap-2">
-                            <button onclick="addManualTransaction()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded shadow transition-colors">
-                                + Add Row
-                            </button>
-                            <button onclick="syncToBudget()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded shadow transition-colors hidden" id="syncBtn">
-                                Sync to Budget Planner
-                            </button>
+                            <button onclick="addManualTransaction()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded shadow transition-colors">+ Add Row</button>
+                            <button onclick="syncToBudget()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded shadow transition-colors hidden" id="syncBtn">Sync to Budget Planner</button>
                         </div>
                     </div>
 
@@ -150,23 +152,9 @@
                         <button onclick="deleteSelected()" class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded shadow transition-colors ml-auto">Delete Selected</button>
                     </div>
 
-                    <div id="mainLedgerWrapper" class="overflow-x-auto">
+                    <!-- Restricted Height Main Ledger (Scrollable) -->
+                    <div id="mainLedgerWrapper" class="overflow-auto max-h-[800px] border-b border-gray-200 dark:border-gray-700 rounded-b-lg">
                         <!-- Main Ledger Built by JS -->
-                    </div>
-                </div>
-
-                <!-- Filter Popups (Hidden) -->
-                <div id="filterOverlay" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center backdrop-blur-sm" onclick="closeFilterModal(event)">
-                    <div id="filterModal" class="bg-white dark:bg-darkCard p-6 rounded-xl shadow-2xl w-80 max-w-full m-4" onclick="event.stopPropagation()">
-                        <h3 id="filterTitle" class="text-lg font-bold mb-4 dark:text-gray-100">Filter</h3>
-                        <div id="filterContent" class="space-y-4 mb-6"></div>
-                        <div class="flex justify-between">
-                            <button onclick="clearCurrentFilter()" class="px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors">Clear</button>
-                            <div class="flex gap-2">
-                                <button onclick="closeFilterModal()" class="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors">Cancel</button>
-                                <button onclick="applyFilters()" class="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors shadow">Apply</button>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
@@ -174,12 +162,29 @@
                     <h2 class="text-lg font-bold text-yellow-800 dark:text-yellow-500 mb-2">⚠️ Unsorted Transactions (Action Required)</h2>
                     <p class="text-xs text-yellow-700 dark:text-yellow-600 mb-2">Please assign a category to move these to the main ledger.</p>
                     <p id="mathWarningText" class="text-xs font-bold text-red-600 dark:text-red-400 mb-4 hidden">The engine could not properly verify the account balance. We recommend uploading a full screenshot or the bank statement PDF to enable mathematical verification.</p>
-                    <div id="unsortedLedgerWrapper" class="overflow-x-auto">
+                    
+                    <!-- Restricted Height Unsorted Ledger (Scrollable) -->
+                    <div id="unsortedLedgerWrapper" class="overflow-auto max-h-[800px] border-b border-yellow-200 dark:border-yellow-800 rounded-b-lg">
                         <!-- Unsorted Ledger Built by JS -->
                     </div>
                 </div>
             </div>
-            
+
+            <!-- Filter Popups (Hidden) -->
+            <div id="filterOverlay" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center backdrop-blur-sm" onclick="closeFilterModal(event)">
+                <div id="filterModal" class="bg-white dark:bg-darkCard p-6 rounded-xl shadow-2xl w-80 max-w-full m-4" onclick="event.stopPropagation()">
+                    <h3 id="filterTitle" class="text-lg font-bold mb-4 dark:text-gray-100">Filter</h3>
+                    <div id="filterContent" class="space-y-4 mb-6"></div>
+                    <div class="flex justify-between">
+                        <button onclick="clearCurrentFilter()" class="px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors">Clear</button>
+                        <div class="flex gap-2">
+                            <button onclick="closeFilterModal()" class="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors">Cancel</button>
+                            <button onclick="applyFilters()" class="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors shadow">Apply</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </main>
 
@@ -218,15 +223,13 @@
                 title.innerText = "Filter by Category";
                 let chkHtml = `<div class="max-h-60 overflow-y-auto space-y-2 pr-2">`;
                 
-                let allCats = [{id: 'income', label: '+ Inflow (Income)'}, {id: 'income_transfer', label: '+ Inflow (Transfer)'}, {id: 'unsorted', label: 'Unsorted'}, ...categories];
-                
-                allCats.forEach(c => {
-                    let isChecked = filters.categories.length === 0 || filters.categories.includes(c.id) ? 'checked' : '';
-                    chkHtml += `<label class="flex items-center space-x-2 cursor-pointer p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded">
-                        <input type="checkbox" value="${c.id}" class="filter-cat-chk rounded border-gray-300" ${isChecked}>
-                        <span class="text-sm dark:text-gray-200">${c.label}</span>
-                    </label>`;
-                });
+                let allCats = [
+                    {id: 'income', label: '💵 + Inflow (Income)'}, 
+                    {id: 'income_transfer', label: '🔄 + Inflow (Transfer)'}, 
+                    {id: 'unsorted', label: '⚠️ Unsorted'}
+                ];
+                // Inject the dynamic emojis into the filter labels
+                categories.forEach(c => allCats.push({id: c.id, label: `${c.emoji} - Outflow (${c.label})`}));
                 content.innerHTML = chkHtml + `</div>`;
             }
             
@@ -331,15 +334,21 @@
             });
         }
         
-        // Match Budget Planner Categories
+        // Match Budget Planner Categories & Emojis
         const categories = [
-            { id: 'catHousing', label: 'Housing' }, { id: 'catGroceries', label: 'Groceries' },
-            { id: 'catDining', label: 'Dining' }, { id: 'catTransport', label: 'Transportation' },
-            { id: 'catUtilities', label: 'Utilities' }, { id: 'catWellness', label: 'Health & Wellness' },
-            { id: 'catEntertainment', label: 'Entertainment' }, { id: 'catTravel', label: 'Travel' },
-            { id: 'catShopping', label: 'Shopping' }, { id: 'catMisc', label: 'Misc.' },
-            { id: 'catSavings', label: 'Savings' }, { id: 'catInvesting', label: 'Investing' },
-            { id: 'catDebt', label: 'Debt Payment' } // New Category
+            { id: 'catHousing', label: 'Housing', emoji: '🏠' }, 
+            { id: 'catGroceries', label: 'Groceries', emoji: '🛒' },
+            { id: 'catDining', label: 'Dining', emoji: '🍽️' }, 
+            { id: 'catTransport', label: 'Transportation', emoji: '🚗' },
+            { id: 'catUtilities', label: 'Utilities', emoji: '⚡' }, 
+            { id: 'catWellness', label: 'Health & Wellness', emoji: '⚕️' },
+            { id: 'catEntertainment', label: 'Entertainment', emoji: '🎬' }, 
+            { id: 'catTravel', label: 'Travel', emoji: '✈️' },
+            { id: 'catShopping', label: 'Shopping', emoji: '🛍️' }, 
+            { id: 'catMisc', label: 'Misc.', emoji: '📦' },
+            { id: 'catSavings', label: 'Savings', emoji: '💰' }, 
+            { id: 'catInvesting', label: 'Investing', emoji: '📈' },
+            { id: 'catDebt', label: 'Debt Payment', emoji: '💳' } 
         ];
 
         // Basic Keyword Dictionary for Auto-Categorization
@@ -424,11 +433,12 @@
                             const page = await pdf.getPage(pageNum);
                             const textContent = await page.getTextContent();
                             textContent.items.forEach(item => {
-                                textItems.push({ str: item.str, x: item.transform[4], y: item.transform[5] });
+                                // STEP 1: Apply Mathematical Page Offset to prevent cross-page spatial merging
+                                let adjustedY = item.transform[5] - (pageNum * 10000);
+                                textItems.push({ str: item.str, x: item.transform[4], y: adjustedY });
                             });
                         }
                         
-                        // Sort Top-to-Bottom, then Left-to-Right with a 6px row tolerance
                         textItems.sort((a, b) => {
                             let yDiff = b.y - a.y;
                             if (Math.abs(yDiff) < 6) return a.x - b.x; 
@@ -508,11 +518,17 @@
         function extractTransactions(rawText) {
             const lines = rawText.split('\n');
             const amtRegex = /-?\$?\d{1,3}(?:,\d{3})*\.\d{2}/g; 
-            const dateRegex = /^(\d{1,2}\s*[a-zA-Z]{3}(?:\s*\d{2,4})?|\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)/i; 
+            
+            // Re-anchored to require whitespace boundaries, preventing middle-of-paragraph snags
+            const dateRegex = /(?:^|\s)(\d{1,2}\s*[a-zA-Z]{3}(?:\s*\d{2,4})?|\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)(?:\s|$)/i; 
             
             let lastBalance = null;
             let mathVerificationFailedCount = 0;
-            const summaryKeywords = ['deposits and additions', 'electronic withdrawals', 'totals', 'summary', 'total qualifying', 'ending balance'];
+            
+            // STEP 2: The Stateful Fence
+            let isInsideTransactionTable = true; 
+            const stopKeywords = ['ending balance', 'in case of errors', 'total fees for this period', 'totals', 'summary', 'total qualifying'];
+            const startKeywords = ['beginning balance', 'opening balance', 'transaction detail', 'payments and other credits', 'purchase', 'account activity'];
 
             lines.forEach(line => {
                 let text = line.trim();
@@ -520,7 +536,14 @@
                 let normalizedText = lowerText.replace(/\s+/g, ' '); 
                 if (!text) return;
 
-                if (summaryKeywords.some(kw => normalizedText.includes(kw))) return;
+                // Toggle Stateful Fence Flags
+                if (stopKeywords.some(kw => normalizedText.includes(kw))) isInsideTransactionTable = false;
+                if (startKeywords.some(kw => normalizedText.includes(kw))) isInsideTransactionTable = true;
+                
+                if (!isInsideTransactionTable) return; // Completely ignore all text outside the fence
+
+                // Scrub US Phone Numbers and long Reference IDs to prevent OCR hallucinations
+                text = text.replace(/\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g, '').replace(/\b\d{10,}\b/g, '');
 
                 let amountsMatch = text.match(amtRegex);
                 let dateMatch = text.match(dateRegex);
@@ -528,19 +551,23 @@
                 if (!amountsMatch && !dateMatch) return;
                 let parsedAmounts = amountsMatch ? amountsMatch.map(a => parseFloat(a.replace(/[$,-]/g, ''))) : [];
 
+                // Re-seed balance anchor if a header explicitly states it
                 if (normalizedText.includes('beginning balance') || normalizedText.includes('opening balance') || normalizedText.includes('previous balance')) {
                     if (parsedAmounts.length > 0) lastBalance = parsedAmounts[parsedAmounts.length - 1];
                     return; 
                 }
 
                 let dateStr = "";
-                if (dateMatch) dateStr = dateMatch[1];
+                if (dateMatch) dateStr = dateMatch[1].trim();
                 
                 let merchant = text;
                 if (amountsMatch) amountsMatch.forEach(amt => merchant = merchant.replace(amt, ''));
                 merchant = merchant.replace(dateRegex, '').replace(/[^a-zA-Z0-9\s\*\#]/g, '').trim().substring(0, 30); 
                 
-                if (merchant.length > 2 && (parsedAmounts.length > 0 || dateStr)) {
+                // STRICT GUARDRAIL: We now require a Date, a Merchant string, AND an Amount.
+                // This instantly filters out all "Unknown" date hallucinations.
+                if (merchant.length > 2 && parsedAmounts.length > 0 && dateStr) {
+                    
                     let txAmount = parsedAmounts.length > 0 ? parsedAmounts[0] : 0.00;
                     let isIncome = null;
                     let isVerified = false;
@@ -566,18 +593,36 @@
                     if (!isVerified) {
                         mathVerificationFailedCount++;
                         isIncome = null;
-                        if (parsedAmounts.length > 0) txAmount = parsedAmounts[0];
-                        if (parsedAmounts.length >= 2) lastBalance = parsedAmounts[parsedAmounts.length - 1];
+                        
+                        if (parsedAmounts.length === 1) {
+                            txAmount = parsedAmounts[0];
+                        } else if (parsedAmounts.length > 1) {
+                            let sortedByAbs = [...parsedAmounts].sort((a, b) => Math.abs(a) - Math.abs(b));
+                            txAmount = sortedByAbs[0]; 
+                        }
+                        lastBalance = null; 
                     }
 
                     let ruleCat = getCustomRuleCategory(merchant);
                     let finalCat = 'unsorted';
-                    let finalAmt = txAmount;
+                    let finalAmt = Math.abs(txAmount); 
 
-                    if (isIncome === true) {
+                    let explicitNegative = false;
+                    if (amountsMatch) {
+                        let foundStr = amountsMatch.find(a => parseFloat(a.replace(/[$,-]/g, '')) === Math.abs(txAmount));
+                        if (foundStr && foundStr.includes('-')) explicitNegative = true;
+                    }
+
+                    let isOutflow = false;
+                    let isInflow = false;
+                    
+                    if (isIncome === true) isInflow = true;
+                    else if (isIncome === false) isOutflow = true;
+                    else if (explicitNegative) isOutflow = true; 
+
+                    if (isInflow) {
                         finalCat = (ruleCat && ruleCat.startsWith('income')) ? ruleCat : 'income';
-                        finalAmt = Math.abs(txAmount);
-                    } else if (isIncome === false) {
+                    } else if (isOutflow) {
                         finalCat = (ruleCat && !ruleCat.startsWith('income')) ? ruleCat : autoCategorizeExpense(merchant);
                         finalAmt = -Math.abs(txAmount);
                     } else {
@@ -586,15 +631,13 @@
                             finalAmt = ruleCat.startsWith('income') ? Math.abs(txAmount) : -Math.abs(txAmount);
                         } else {
                             finalCat = 'unsorted';
-                            finalAmt = txAmount; 
+                            finalAmt = Math.abs(txAmount); 
                         }
                     }
 
-                    if (!dateStr || dateStr.toLowerCase() === "unknown") finalCat = 'unsorted';
-
                     rawTransactions.push({
                         id: 'tx_' + Date.now() + Math.random().toString(16).slice(2),
-                        date: dateStr || "Unknown",
+                        date: dateStr, // We know this is strictly valid now
                         merchant: merchant || "Unknown Merchant",
                         amount: finalAmt,
                         categoryId: finalCat,
@@ -719,6 +762,7 @@
             let html = `
                 <table class="w-full text-left border-collapse select-none">
                     <thead>
+                        <thead class="sticky top-0 bg-white dark:bg-darkCard z-20 shadow-sm">
                         <tr class="text-xs text-gray-400 uppercase border-b border-gray-200 dark:border-gray-700">
                             <th class="py-2 px-2 w-8"></th>
                             <th class="py-2 px-2 cursor-pointer hover:text-blue-500 transition-colors" onclick="openFilterModal('date')">Date <span class="text-[10px]">▼</span></th>
@@ -736,12 +780,12 @@
                 if (tx.isDuplicate) rowClass += " bg-yellow-50 dark:bg-yellow-900/20";
                 if (tx.isSelected) rowClass += " bg-blue-50 dark:bg-blue-900/20";
                 
-                let optionsHtml = `<option value="unsorted" disabled ${tx.categoryId === 'unsorted' ? 'selected' : ''}>Select Category...</option>`;
-                optionsHtml += `<option value="income" ${tx.categoryId === 'income' ? 'selected' : ''}>+ Inflow (Income)</option>`;
-                optionsHtml += `<option value="income_transfer" ${tx.categoryId === 'income_transfer' ? 'selected' : ''}>+ Inflow (Transfer)</option>`;
+                let optionsHtml = `<option value="unsorted" disabled ${tx.categoryId === 'unsorted' ? 'selected' : ''}>⚠️ Select Category...</option>`;
+                optionsHtml += `<option value="income" ${tx.categoryId === 'income' ? 'selected' : ''}>💵 + Inflow (Income)</option>`;
+                optionsHtml += `<option value="income_transfer" ${tx.categoryId === 'income_transfer' ? 'selected' : ''}>🔄 + Inflow (Transfer)</option>`;
                 optionsHtml += `<option disabled>──────────</option>`;
                 categories.forEach(c => {
-                    optionsHtml += `<option value="${c.id}" ${tx.categoryId === c.id ? 'selected' : ''}>- Outflow (${c.label})</option>`;
+                    optionsHtml += `<option value="${c.id}" ${tx.categoryId === c.id ? 'selected' : ''}>${c.emoji} - Outflow (${c.label})</option>`;
                 });
 
                 let amtColor = tx.amount > 0 ? "text-green-600 font-bold" : "text-gray-900 dark:text-gray-100";
@@ -820,14 +864,17 @@
             if (selectedCount > 0) {
                 bulkBar.classList.remove('hidden');
                 const bulkSelect = document.getElementById('bulkCategorySelect');
-                if (bulkSelect.options.length <= 3) {
-                    bulkSelect.innerHTML = `<option value="" disabled selected>Set category...</option>
-                                            <option value="income">+ Inflow (Income)</option>
-                                            <option value="income_transfer">+ Inflow (Transfer)</option>
+                
+                // Allow the dynamic population to fire if the menu only has the 4 base HTML options
+                if (bulkSelect.options.length <= 4) {
+                    bulkSelect.innerHTML = `<option value="" disabled selected>⚠️ Set category...</option>
+                                            <option value="income">💵 + Inflow (Income)</option>
+                                            <option value="income_transfer">🔄 + Inflow (Transfer)</option>
                                             <option disabled>──────────</option>`;
                     categories.forEach(c => {
                         let opt = document.createElement('option');
-                        opt.value = c.id; opt.text = `- Outflow (${c.label})`;
+                        opt.value = c.id; 
+                        opt.text = `${c.emoji} - Outflow (${c.label})`; // Inject Emoji
                         bulkSelect.add(opt);
                     });
                 }
@@ -880,7 +927,9 @@
             
             let net = inflow - outflow;
             let netUI = document.getElementById('netVarianceUI');
-            netUI.innerText = net < 0 ? `-$${Math.abs(net).toLocaleString(undefined, {minimumFractionDigits: 2})}` : `$${net.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+            
+            // Enforce maximumFractionDigits to prevent UI trailing decimals
+            netUI.innerText = net < 0 ? `-$${Math.abs(net).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : `$${net.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
             netUI.className = net < 0 ? "text-xl font-black text-red-600" : "text-xl font-black text-green-600";
 
             let dateRangeStr = "No dates available";
@@ -909,7 +958,8 @@
                 if (t.categoryId === 'income') totalIncome += Math.abs(t.amount);
                 else if (t.categoryId === 'income_transfer') totalTransfer += Math.abs(t.amount);
                 else {
-                    let catLabel = categories.find(c => c.id === t.categoryId)?.label || 'Misc';
+                    let catObj = categories.find(c => c.id === t.categoryId);
+                    let catLabel = catObj ? `${catObj.emoji} ${catObj.label}` : '📦 Misc.';
                     categoriesSum[catLabel] = (categoriesSum[catLabel] || 0) + Math.abs(t.amount);
                 }
             });
@@ -923,43 +973,101 @@
                 return;
             }
 
-            if (totalIncome > 0) rows.push(['Income', 'Total Funds', totalIncome]);
-            if (totalTransfer > 0) rows.push(['Transfers', 'Total Funds', totalTransfer]);
-            if (totalOutflow > totalInflow) rows.push(['Deficit', 'Total Funds', totalOutflow - totalInflow]);
+            const safeFloat = (val) => Math.round(val * 100) / 100;
+            const formatCash = (val) => '$' + safeFloat(val).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            let grandTotal = Math.max(totalInflow, totalOutflow);
+            
+            const formatLabel = (name, val) => {
+                let pct = grandTotal > 0 ? ((val / grandTotal) * 100).toFixed(1) : 0;
+                return `${name}||${formatCash(val)} (${pct}%)`;
+            };
 
             let rightSideNodeCount = 0;
+            let nodeTotal = formatLabel('🏦 Total Funds', grandTotal);
+
+            if (totalIncome > 0) rows.push([formatLabel('💵 Income', totalIncome), nodeTotal, { v: safeFloat(totalIncome), f: formatCash(totalIncome) }]);
+            if (totalTransfer > 0) rows.push([formatLabel('🔄 Transfers', totalTransfer), nodeTotal, { v: safeFloat(totalTransfer), f: formatCash(totalTransfer) }]);
+            if (totalOutflow > totalInflow) rows.push([formatLabel('📉 Deficit', totalOutflow - totalInflow), nodeTotal, { v: safeFloat(totalOutflow - totalInflow), f: formatCash(totalOutflow - totalInflow) }]);
+
             for (const [cat, amt] of Object.entries(categoriesSum)) {
                 if (amt > 0) {
-                    rows.push(['Total Funds', cat, amt]);
+                    rows.push([nodeTotal, formatLabel(cat, amt), { v: safeFloat(amt), f: formatCash(amt) }]);
                     rightSideNodeCount++;
                 }
             }
 
             if (totalInflow > totalOutflow) {
-                rows.push(['Total Funds', 'Unspent Cash', totalInflow - totalOutflow]);
+                rows.push([nodeTotal, formatLabel('🐷 Unspent Cash', totalInflow - totalOutflow), { v: safeFloat(totalInflow - totalOutflow), f: formatCash(totalInflow - totalOutflow) }]);
                 rightSideNodeCount++;
             }
 
             data.addRows(rows);
             
-            // Dynamic Height Calculation: 40px per node, with a minimum height of 250px
-            let calculatedHeight = Math.max(250, rightSideNodeCount * 40);
+            let calculatedHeight = Math.max(250, rightSideNodeCount * 55); 
             container.style.height = calculatedHeight + 'px';
             
             let options = {
                 sankey: {
                     node: {
                         colors: ['#22C55E', '#3B82F6', '#F43F5E', '#A855F7', '#F59E0B', '#10B981', '#6366F1'],
-                        nodePadding: 12,
+                        nodePadding: 24, 
                         width: 15,
-                        label: { fontName: 'sans-serif', fontSize: 11, color: document.documentElement.classList.contains('dark') ? '#D1D5DB' : '#4B5563' }
+                        label: { fontName: 'sans-serif', fontSize: 13, color: document.documentElement.classList.contains('dark') ? '#F3F4F6' : '#111827' }
                     },
                     link: { colorMode: 'gradient' },
-                    iterations: 0 // Forces strict left-to-right flow, preventing spaghetti twisting and floating text
+                    iterations: 0
                 }
             };
             
+            let formatter = new google.visualization.NumberFormat({ prefix: '$', fractionDigits: 2 });
+            formatter.format(data, 2); 
+            
             let chart = new google.visualization.Sankey(container);
+
+            // 1. Extract the DOM mutation into a reusable function
+            const applyDOMHack = () => {
+                const svgTexts = container.getElementsByTagName('text');
+                for (let i = svgTexts.length - 1; i >= 0; i--) {
+                    let textEl = svgTexts[i];
+                    if (textEl.textContent.includes('||')) {
+                        let parts = textEl.textContent.split('||');
+                        let originalX = textEl.getAttribute('x'); 
+                        
+                        textEl.textContent = ''; 
+                        
+                        let tspan1 = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+                        tspan1.textContent = parts[0];
+                        tspan1.setAttribute('x', originalX);
+                        tspan1.setAttribute('dy', '-0.3em'); 
+                        
+                        let tspan2 = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+                        tspan2.textContent = parts[1];
+                        tspan2.setAttribute('x', originalX);
+                        tspan2.setAttribute('dy', '1.4em'); 
+                        tspan2.setAttribute('font-size', '10px');
+                        tspan2.setAttribute('fill', document.documentElement.classList.contains('dark') ? '#9CA3AF' : '#6B7280'); 
+                        
+                        textEl.appendChild(tspan1);
+                        textEl.appendChild(tspan2);
+                    }
+                }
+            };
+
+            // 2. Attach a MutationObserver inside the initial ready event
+            google.visualization.events.addListener(chart, 'ready', function() {
+                applyDOMHack(); // Run the initial hack
+                
+                // Create a sentinel to watch for Google Charts hover re-renders
+                const observer = new MutationObserver(() => {
+                    observer.disconnect(); // Pause watching to prevent an infinite loop
+                    applyDOMHack();        // Re-apply our formatting
+                    observer.observe(container, { childList: true, subtree: true, characterData: true }); // Resume watching
+                });
+                
+                // Start watching the diagram for changes
+                observer.observe(container, { childList: true, subtree: true, characterData: true });
+            });
+
             chart.draw(data, options);
         }
 
