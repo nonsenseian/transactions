@@ -62,7 +62,7 @@
                 <!-- Upload Statements -->
                 <div class="bg-white dark:bg-darkCard p-6 rounded-xl shadow-md border dark:border-darkBorder flex flex-col justify-between">
                     <div>
-                        <h2 class="text-xl font-semibold mb-4 border-b pb-2 dark:border-darkBorder">1. Upload Statements</h2>
+                        <h2 class="text-xl font-semibold mb-4 border-b pb-2 dark:border-darkBorder">Upload Bank Statements</h2>
                         <div id="dropzone" class="dropzone rounded-xl p-8 text-center cursor-pointer bg-gray-50 dark:bg-gray-800">
                             <p class="text-4xl mb-2">📄</p>
                             <p class="font-bold text-gray-700 dark:text-gray-300">Drag & Drop Bank Statements</p>
@@ -105,7 +105,7 @@
             <!-- Second Row: Sankey Diagram & Export -->
             <div class="bg-white dark:bg-darkCard p-6 rounded-xl shadow-md border dark:border-darkBorder">
                 <div class="flex justify-between items-center mb-4 border-b pb-2 dark:border-darkBorder">
-                    <h3 class="text-xl font-semibold">Transaction Flow</h3>
+                    <h3 class="text-xl font-semibold">Transaction Flow (Sankey Diagram)</h3>
                     <button onclick="exportToCSV()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 text-sm font-bold rounded shadow transition-colors flex items-center gap-2">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                         Export to CSV
@@ -119,7 +119,7 @@
                 <div class="bg-white dark:bg-darkCard p-6 rounded-xl shadow-md border dark:border-darkBorder">
                     <div class="flex justify-between items-center border-b pb-4 mb-4 dark:border-darkBorder">
                         <div>
-                            <h2 class="text-xl font-semibold">2. Transaction Summary</h2>
+                            <h2 class="text-xl font-semibold">Transaction Summary <span id="summaryDateRange" class="text-sm font-normal text-gray-500 ml-2"></span></h2>
                             <p class="text-xs text-gray-500 mt-1">Review your categorized transactions. Click and drag across rows to multi-select.</p>
                         </div>
                         <div class="flex gap-2">
@@ -191,6 +191,22 @@
     <script>
         let rawTransactions = [];
         let parsedTransactions = [];
+        let dateSortAscending = true; 
+
+        // Centralized Sorting Engine
+        function sortTransactions() {
+            parsedTransactions.sort((a, b) => {
+                let diff = getComparableDate(a.date) - getComparableDate(b.date);
+                return dateSortAscending ? diff : -diff;
+            });
+        }
+
+        // Sort Direction Toggle
+        function toggleDateSort() {
+            dateSortAscending = !dateSortAscending;
+            sortTransactions();
+            renderLedger();
+        }
 
         // --- FILTERING ENGINE ---
         let filters = {
@@ -221,15 +237,34 @@
                 `;
             } else if (type === 'category') {
                 title.innerText = "Filter by Category";
-                let chkHtml = `<div class="max-h-60 overflow-y-auto space-y-2 pr-2">`;
+                let allChecked = (filters.categories.length === 0) ? 'checked' : '';
+                
+                // Master Toggle: Select/Deselect all category filters
+                let chkHtml = `
+                    <div class="mb-3 pb-3 border-b border-gray-200 dark:border-gray-700">
+                        <label class="flex items-center space-x-2 cursor-pointer p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded">
+                            <input type="checkbox" id="selectAllCats" class="rounded border-gray-300" ${allChecked} onchange="toggleAllFilters(this)">
+                            <span class="text-sm font-bold dark:text-gray-200">(Select / Deselect All)</span>
+                        </label>
+                    </div>
+                    <div class="max-h-60 overflow-y-auto space-y-2 pr-2">`;
                 
                 let allCats = [
                     {id: 'income', label: '💵 + Inflow (Income)'}, 
                     {id: 'income_transfer', label: '🔄 + Inflow (Transfer)'}, 
+                    {id: 'income_p2p', label: '💸 + Inflow (Peer-to-Peer)'}, 
                     {id: 'unsorted', label: '⚠️ Unsorted'}
                 ];
-                // Inject the dynamic emojis into the filter labels
                 categories.forEach(c => allCats.push({id: c.id, label: `${c.emoji} - Outflow (${c.label})`}));
+                
+                allCats.forEach(c => {
+                    let isChecked = filters.categories.length === 0 || filters.categories.includes(c.id) ? 'checked' : '';
+                    // Child Toggle Logic: Updates the master checkbox state dynamically
+                    chkHtml += `<label class="flex items-center space-x-2 cursor-pointer p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded">
+                        <input type="checkbox" value="${c.id}" class="filter-cat-chk rounded border-gray-300" ${isChecked} onchange="document.getElementById('selectAllCats').checked = Array.from(document.querySelectorAll('.filter-cat-chk')).every(cb => cb.checked)">
+                        <span class="text-sm dark:text-gray-200">${c.label}</span>
+                    </label>`;
+                });
                 content.innerHTML = chkHtml + `</div>`;
             }
             
@@ -240,6 +275,12 @@
             if (e && e.target.id !== 'filterOverlay') return;
             document.getElementById('filterOverlay').classList.add('hidden');
             activeModalType = null;
+        }
+
+        function toggleAllFilters(masterCheckbox) {
+            document.querySelectorAll('.filter-cat-chk').forEach(cb => {
+                cb.checked = masterCheckbox.checked;
+            });
         }
 
         function clearCurrentFilter() {
@@ -270,7 +311,6 @@
             
             closeFilterModal();
             
-            // Toggle Global Clear Button Visibility
             let hasActiveFilters = filters.search || filters.dateStart || filters.dateEnd || filters.amountMin || filters.amountMax || filters.categories.length > 0;
             const clearBtn = document.getElementById('clearFiltersBtn');
             if (clearBtn) {
@@ -292,7 +332,7 @@
             renderLedger();
         }
 
-        // Helper: Convert MM/DD or YYYY-MM-DD string to reliable comparable Date value
+        // Helper: Convert YYYY-MM-DD or MM/DD/YYYY string to reliable comparable Date value
         function getComparableDate(dateStr) {
             if (!dateStr || dateStr.toLowerCase() === 'unknown') return 0;
             
@@ -302,13 +342,12 @@
                 return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10)).getTime();
             }
 
-            // Otherwise, handle MM/DD or MM/DD/YYYY from the parsed ledger
+            // Handle the standardized MM/DD/YYYY from the parser
             let parts = dateStr.split(/[\/\-]/);
-            let m = parseInt(parts[0], 10) - 1;
-            let d = parseInt(parts[1], 10);
-            let y = parts.length > 2 ? parseInt(parts[2], 10) : new Date().getFullYear();
-            if (y < 100) y += 2000;
-            return new Date(y, m, d).getTime();
+            if (parts.length === 3) {
+                return new Date(parseInt(parts[2], 10), parseInt(parts[0], 10) - 1, parseInt(parts[1], 10)).getTime();
+            }
+            return 0;
         }
 
         function getFilteredArray(txArray) {
@@ -319,7 +358,7 @@
                 
                 if (filters.dateStart || filters.dateEnd) {
                     let txTime = getComparableDate(tx.date);
-                    if (txTime === 0) return false; // Hide unknowns if date filtering
+                    if (txTime === 0) return false; 
                     if (filters.dateStart && txTime < getComparableDate(filters.dateStart)) return false;
                     if (filters.dateEnd && txTime > getComparableDate(filters.dateEnd)) return false;
                 }
@@ -334,7 +373,7 @@
             });
         }
         
-        // Match Budget Planner Categories & Emojis
+        // Categories & Emojis
         const categories = [
             { id: 'catHousing', label: 'Housing', emoji: '🏠' }, 
             { id: 'catGroceries', label: 'Groceries', emoji: '🛒' },
@@ -342,25 +381,98 @@
             { id: 'catTransport', label: 'Transportation', emoji: '🚗' },
             { id: 'catUtilities', label: 'Utilities', emoji: '⚡' }, 
             { id: 'catWellness', label: 'Health & Wellness', emoji: '⚕️' },
+            { id: 'catPersonalCare', label: 'Personal Care', emoji: '✂️' }, 
+            { id: 'catEducation', label: 'Education', emoji: '🎓' }, 
+            { id: 'catPets', label: 'Pets', emoji: '🐾' }, 
+            { id: 'catSubscriptions', label: 'Subscriptions', emoji: '🔁' },
             { id: 'catEntertainment', label: 'Entertainment', emoji: '🎬' }, 
             { id: 'catTravel', label: 'Travel', emoji: '✈️' },
             { id: 'catShopping', label: 'Shopping', emoji: '🛍️' }, 
+            { id: 'catGifts', label: 'Gifts & Donations', emoji: '🎁' }, 
             { id: 'catMisc', label: 'Misc.', emoji: '📦' },
+            { id: 'catFees', label: 'Fees & Charges', emoji: '🏦' }, 
             { id: 'catSavings', label: 'Savings', emoji: '💰' }, 
             { id: 'catInvesting', label: 'Investing', emoji: '📈' },
-            { id: 'catDebt', label: 'Debt Payment', emoji: '💳' } 
+            { id: 'catDebt', label: 'Debt Payment', emoji: '💳' },
+            { id: 'catP2P', label: 'Peer-to-Peer', emoji: '💸' } 
         ];
 
-        // Basic Keyword Dictionary for Auto-Categorization
+        // Keyword Dictionary for Auto-Categorization
         const keywordMap = {
-            'uber': 'catTransport', 'lyft': 'catTransport', 'shell': 'catTransport', 'chevron': 'catTransport',
+            'venmo': 'catP2P', 'zelle': 'catP2P', 'cashapp': 'catP2P', 'paypal': 'catP2P', 
+            'uber': 'catTransport', 'lyft': 'catTransport', 'shell': 'catTransport', 'chevron': 'catTransport', 'arco': 'catTransport',
             'whole foods': 'catGroceries', 'safeway': 'catGroceries', 'trader joe': 'catGroceries', 'kroger': 'catGroceries',
-            'netflix': 'catEntertainment', 'spotify': 'catEntertainment', 'hulu': 'catEntertainment', 'amc': 'catEntertainment',
             'mcdonalds': 'catDining', 'starbucks': 'catDining', 'doordash': 'catDining', 'restaurant': 'catDining',
             'pge': 'catUtilities', 'comcast': 'catUtilities', 'att': 'catUtilities', 'verizon': 'catUtilities',
             'cvs': 'catWellness', 'walgreens': 'catWellness', 'gym': 'catWellness', 'planet fitness': 'catWellness',
             'amazon': 'catShopping', 'target': 'catShopping', 'walmart': 'catShopping',
-            'credit': 'catDebt', 'loan': 'catDebt', 'chase card': 'catDebt', 'amex': 'catDebt', 'discover': 'catDebt' // Debt defaults
+            'credit': 'catDebt', 'loan': 'catDebt', 'chase card': 'catDebt', 'amex': 'catDebt', 'discover': 'catDebt', 'payment': 'catDebt',
+            'netflix': 'catSubscriptions', 'spotify': 'catSubscriptions', 'hulu': 'catSubscriptions', 'patreon': 'catSubscriptions', 'apple': 'catSubscriptions',
+            'petco': 'catPets', 'chewy': 'catPets', 'petsmart': 'catPets', 
+            'university': 'catEducation', 'college': 'catEducation', 
+            'fee': 'catFees', 'interest charge': 'catFees' 
+        };
+
+        // --- CLIENT-SIDE NAIVE BAYES CLASSIFIER (AI ENGINE) ---
+        const BayesEngine = {
+            // Load machine learning weights from local storage
+            model: JSON.parse(localStorage.getItem('tx_ml_model')) || { catCounts: {}, wordCounts: {}, totalTx: 0, vocab: [] },
+
+            // Tokenizer: Normalizes text and filters out common stop-words
+            tokenize: function(text) {
+                return text.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2);
+            },
+
+            train: function(merchant, category) {
+                // Model Training: Restricts learning to expense categories to maintain accuracy
+                if (category === 'unsorted' || category.startsWith('income')) return;
+
+                let words = this.tokenize(merchant);
+                if (words.length === 0) return;
+
+                this.model.totalTx++;
+                this.model.catCounts[category] = (this.model.catCounts[category] || 0) + 1;
+                if (!this.model.wordCounts[category]) this.model.wordCounts[category] = {};
+
+                words.forEach(w => {
+                    this.model.wordCounts[category][w] = (this.model.wordCounts[category][w] || 0) + 1;
+                    if (!this.model.vocab.includes(w)) this.model.vocab.push(w);
+                });
+
+                localStorage.setItem('tx_ml_model', JSON.stringify(this.model));
+            },
+
+            predict: function(merchant) {
+                // Model Prediction: Requires a baseline of 10 transactions to ensure statistical relevance
+                if (this.model.totalTx < 10) return null;
+
+                let words = this.tokenize(merchant);
+                if (words.length === 0) return null;
+
+                let bestCat = null;
+                let maxLogProb = -Infinity;
+                let vocabSize = this.model.vocab.length;
+
+                for (const cat in this.model.catCounts) {
+                    let catProb = Math.log(this.model.catCounts[cat] / this.model.totalTx);
+                    let wordLogProbSum = 0;
+                    let totalWordsInCat = Object.values(this.model.wordCounts[cat]).reduce((a, b) => a + b, 0);
+
+                    words.forEach(w => {
+                        // Laplace Smoothing: Prevents zero-probability errors on unrecognized tokens
+                        let wordCount = this.model.wordCounts[cat][w] || 0;
+                        let pWordGivenCat = (wordCount + 1) / (totalWordsInCat + vocabSize);
+                        wordLogProbSum += Math.log(pWordGivenCat);
+                    });
+
+                    let totalLogProb = catProb + wordLogProbSum;
+                    if (totalLogProb > maxLogProb) {
+                        maxLogProb = totalLogProb;
+                        bestCat = cat;
+                    }
+                }
+                return bestCat;
+            }
         };
 
         // Initialize Custom Rules Engine from LocalStorage
@@ -397,7 +509,7 @@
             if (e.target.files.length > 0) processFiles(e.target.files);
         });
 
-        // Dual-Engine Processor (PDF Text Extraction + Image OCR Fallback)
+        // Dual-Engine Document Processor: Utilizes PDF.js for digital documents and Tesseract.js for images
         async function processFiles(files) {
             document.getElementById('progressContainer').classList.remove('hidden');
             let progText = document.getElementById('progressText');
@@ -433,22 +545,23 @@
                             const page = await pdf.getPage(pageNum);
                             const textContent = await page.getTextContent();
                             textContent.items.forEach(item => {
-                                // STEP 1: Apply Mathematical Page Offset to prevent cross-page spatial merging
+                                // Spatial Mapping: Applies continuous Y-axis offset across multiple PDF pages
                                 let adjustedY = item.transform[5] - (pageNum * 10000);
                                 textItems.push({ str: item.str, x: item.transform[4], y: adjustedY });
                             });
                         }
                         
+                        // Row Clustering: Groups text items within an 8px Y-axis tolerance to reconstruct table rows
                         textItems.sort((a, b) => {
                             let yDiff = b.y - a.y;
-                            if (Math.abs(yDiff) < 6) return a.x - b.x; 
+                            if (Math.abs(yDiff) < 8) return a.x - b.x; 
                             return yDiff;
                         });
 
                         let fullText = "";
                         let lastY = -1;
                         textItems.forEach(item => {
-                            if (lastY !== -1 && Math.abs(lastY - item.y) >= 6) fullText += "\n";
+                            if (lastY !== -1 && Math.abs(lastY - item.y) >= 8) fullText += "\n";
                             fullText += item.str + " ";
                             lastY = item.y;
                         });
@@ -488,9 +601,14 @@
 
         function autoCategorizeExpense(merchant) {
             let lowerM = merchant.toLowerCase();
+            
             for (const [key, catId] of Object.entries(keywordMap)) {
                 if (lowerM.includes(key)) return catId;
             }
+            
+            let aiPrediction = BayesEngine.predict(merchant);
+            if (aiPrediction) return aiPrediction;
+
             return 'catMisc'; 
         }
 
@@ -508,7 +626,7 @@
                 }
             }
             
-            parsedTransactions.sort((a, b) => a.date.localeCompare(b.date));
+            sortTransactions();
             renderLedger();
         }
 
@@ -517,18 +635,58 @@
 
         function extractTransactions(rawText) {
             const lines = rawText.split('\n');
-            const amtRegex = /-?\$?\d{1,3}(?:,\d{3})*\.\d{2}/g; 
             
-            // Re-anchored to require whitespace boundaries, preventing middle-of-paragraph snags
-            const dateRegex = /(?:^|\s)(\d{1,2}\s*[a-zA-Z]{3}(?:\s*\d{2,4})?|\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)(?:\s|$)/i; 
+            // Amount Extraction Regex: Captures standard floats and trailing minus signs
+            const amtRegex = /(?:-?\$?\d{1,3}(?:,\d{3})*\.\d{2}-?)/g; 
+            
+            // Date Extraction Regex: Captures alphanumeric date formats (e.g., "Feb 17", "12/10")
+            const dateRegex = /(?:^|[^\w])((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2}(?:,?\s*\d{2,4})?|\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*(?:\s+\d{2,4})?|\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)(?:[^\w]|$)/i; 
             
             let lastBalance = null;
             let mathVerificationFailedCount = 0;
             
-            // STEP 2: The Stateful Fence
+            // --- YEAR INFERENCE ENGINE ---
+            // Header Scanner: Extracts 4-digit years from the document header
+            let headerText = rawText.substring(0, 1500);
+            let yearMatches = [...headerText.matchAll(/\b(20[1-3]\d)\b/g)].map(m => parseInt(m[1]));
+            let uniqueYears = [...new Set(yearMatches)].sort((a,b) => a-b);
+            
+            // Timeline Bounds: Determines primary and secondary years for statement overlap (e.g., Dec-Jan)
+            let primaryYear = uniqueYears.length > 0 ? uniqueYears[0] : new Date().getFullYear();
+            let secondaryYear = uniqueYears.length > 1 ? uniqueYears[uniqueYears.length - 1] : primaryYear;
+
+            // Date Normalizer: Converts varied string formats into a standardized MM/DD/YYYY
+            function normalizeDate(rawDate) {
+                let month = 1, day = 1;
+                let monthStrMatch = rawDate.match(/[a-zA-Z]+/);
+                
+                if (monthStrMatch) {
+                    let m = monthStrMatch[0].toLowerCase().substring(0,3);
+                    let monthMap = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+                    month = monthMap[m] || 1;
+                    let dayMatch = rawDate.match(/\d{1,2}/);
+                    day = dayMatch ? parseInt(dayMatch[0], 10) : 1;
+                } else {
+                    let parts = rawDate.split(/[\/\-]/);
+                    month = parseInt(parts[0], 10);
+                    day = parseInt(parts[1], 10);
+                }
+
+                // Year-End Wrap Handler: Assigns correct year to trailing months in cross-year statements
+                let finalYear = primaryYear;
+                if (primaryYear !== secondaryYear) {
+                    finalYear = (month >= 10) ? primaryYear : secondaryYear;
+                }
+                
+                let mm = month.toString().padStart(2, '0');
+                let dd = day.toString().padStart(2, '0');
+                return `${mm}/${dd}/${finalYear}`;
+            }
+            
+            // Stateful Fence Keywords: Identifies tables and ignores summary boilerplate
             let isInsideTransactionTable = true; 
-            const stopKeywords = ['ending balance', 'in case of errors', 'total fees for this period', 'totals', 'summary', 'total qualifying'];
-            const startKeywords = ['beginning balance', 'opening balance', 'transaction detail', 'payments and other credits', 'purchase', 'account activity'];
+            const stopKeywords = ['ending balance', 'in case of errors', 'total fees for this period', 'totals', 'summary of your account', 'total qualifying', 'interest paid ytd'];
+            const startKeywords = ['beginning balance', 'opening balance', 'transaction detail', 'payments and other credits', 'purchase', 'account activity', 'account transactions', 'deposits and other credits', 'withdrawals and other debits', 'checks paid', 'activity for', 'deposits | credits', 'deposits i credits', 'deposits / credits', 'other withdrawals', 'your transaction details'];
 
             lines.forEach(line => {
                 let text = line.trim();
@@ -536,36 +694,37 @@
                 let normalizedText = lowerText.replace(/\s+/g, ' '); 
                 if (!text) return;
 
-                // Toggle Stateful Fence Flags
                 if (stopKeywords.some(kw => normalizedText.includes(kw))) isInsideTransactionTable = false;
                 if (startKeywords.some(kw => normalizedText.includes(kw))) isInsideTransactionTable = true;
                 
-                if (!isInsideTransactionTable) return; // Completely ignore all text outside the fence
+                if (!isInsideTransactionTable) return; 
 
-                // Scrub US Phone Numbers and long Reference IDs to prevent OCR hallucinations
                 text = text.replace(/\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g, '').replace(/\b\d{10,}\b/g, '');
 
                 let amountsMatch = text.match(amtRegex);
                 let dateMatch = text.match(dateRegex);
                 
                 if (!amountsMatch && !dateMatch) return;
-                let parsedAmounts = amountsMatch ? amountsMatch.map(a => parseFloat(a.replace(/[$,-]/g, ''))) : [];
+                
+                // Absolute Formatting: Strips negative signs for uniform mathematical processing
+                let parsedAmounts = amountsMatch ? amountsMatch.map(a => parseFloat(a.replace(/[$,\-]/g, ''))) : [];
 
-                // Re-seed balance anchor if a header explicitly states it
                 if (normalizedText.includes('beginning balance') || normalizedText.includes('opening balance') || normalizedText.includes('previous balance')) {
                     if (parsedAmounts.length > 0) lastBalance = parsedAmounts[parsedAmounts.length - 1];
                     return; 
                 }
 
                 let dateStr = "";
-                if (dateMatch) dateStr = dateMatch[1].trim();
+                if (dateMatch && dateMatch[1]) {
+                    // Date Assignment: Passes raw regex match through the normalizer
+                    dateStr = normalizeDate(dateMatch[1].trim());
+                }
                 
                 let merchant = text;
                 if (amountsMatch) amountsMatch.forEach(amt => merchant = merchant.replace(amt, ''));
-                merchant = merchant.replace(dateRegex, '').replace(/[^a-zA-Z0-9\s\*\#]/g, '').trim().substring(0, 30); 
+                merchant = merchant.replace(dateRegex, '').replace(/[^a-zA-Z0-9\s\*\#]/g, '').trim(); 
                 
-                // STRICT GUARDRAIL: We now require a Date, a Merchant string, AND an Amount.
-                // This instantly filters out all "Unknown" date hallucinations.
+                // Data Validation Gate: Requires valid Date, Merchant string, and Amount
                 if (merchant.length > 2 && parsedAmounts.length > 0 && dateStr) {
                     
                     let txAmount = parsedAmounts.length > 0 ? parsedAmounts[0] : 0.00;
@@ -637,7 +796,7 @@
 
                     rawTransactions.push({
                         id: 'tx_' + Date.now() + Math.random().toString(16).slice(2),
-                        date: dateStr, // We know this is strictly valid now
+                        date: dateStr,
                         merchant: merchant || "Unknown Merchant",
                         amount: finalAmt,
                         categoryId: finalCat,
@@ -655,14 +814,14 @@
             }
         }
 
-        // --- NEW CLICK & DRAG SELECTION LOGIC ---
+        // --- MULTI-SELECT UI LOGIC ---
         let isDragSelecting = false;
         let currentDragState = true;
 
         window.addEventListener('mouseup', () => { isDragSelecting = false; });
 
         function startDragSelect(id, e) {
-            e.preventDefault(); // Prevents blue text highlighting while dragging
+            e.preventDefault(); // Default Prevention: Disables text highlighting during drag actions
             isDragSelecting = true;
             let tx = parsedTransactions.find(t => t.id === id);
             if (tx) {
@@ -705,7 +864,7 @@
                 isSelected: false
             };
             parsedTransactions.push(newTx);
-            parsedTransactions.sort((a, b) => a.date.localeCompare(b.date));
+            sortTransactions();
             renderLedger();
         }
 
@@ -713,7 +872,7 @@
             let tx = parsedTransactions.find(t => t.id === id);
             if (tx) {
                 tx.date = val;
-                parsedTransactions.sort((a, b) => a.date.localeCompare(b.date));
+                sortTransactions();
             }
             renderLedger();
         }
@@ -730,11 +889,9 @@
             const unsortedBox = document.getElementById('unsortedBox');
             const syncBtn = document.getElementById('syncBtn');
             
-            // 1. Separate Active vs Unsorted
             let rawActiveTx = parsedTransactions.filter(t => !t.deleted && t.categoryId !== 'unsorted');
             let rawUnsortedTx = parsedTransactions.filter(t => !t.deleted && t.categoryId === 'unsorted');
             
-            // 2. Apply Filters to Display Variables
             let activeTx = getFilteredArray(rawActiveTx);
             let unsortedTx = getFilteredArray(rawUnsortedTx);
 
@@ -759,13 +916,17 @@
         }
 
         function generateTableHTML(txArray, isUnsorted) {
+            let dateIcon = dateSortAscending ? '▲' : '▼';
+            
             let html = `
                 <table class="w-full text-left border-collapse select-none">
-                    <thead>
-                        <thead class="sticky top-0 bg-white dark:bg-darkCard z-20 shadow-sm">
+                    <thead class="sticky top-0 bg-white dark:bg-darkCard z-20 shadow-sm">
                         <tr class="text-xs text-gray-400 uppercase border-b border-gray-200 dark:border-gray-700">
                             <th class="py-2 px-2 w-8"></th>
-                            <th class="py-2 px-2 cursor-pointer hover:text-blue-500 transition-colors" onclick="openFilterModal('date')">Date <span class="text-[10px]">▼</span></th>
+                            <th class="py-2 px-2 whitespace-nowrap">
+                                <span class="cursor-pointer hover:text-blue-500 transition-colors" onclick="toggleDateSort()" title="Sort Dates">Date <span class="text-[10px] inline-block w-2">${dateIcon}</span></span>
+                                <span class="cursor-pointer ml-1 text-gray-300 hover:text-blue-500 transition-colors text-[11px]" onclick="openFilterModal('date')" title="Filter by Date">🔍</span>
+                            </th>
                             <th class="py-2 px-2">Merchant</th>
                             <th class="py-2 px-2 text-right cursor-pointer hover:text-blue-500 transition-colors" onclick="openFilterModal('amount')">Amount <span class="text-[10px]">▼</span></th>
                             <th class="py-2 px-2 cursor-pointer hover:text-blue-500 transition-colors" onclick="openFilterModal('category')">Category <span class="text-[10px]">▼</span></th>
@@ -783,6 +944,7 @@
                 let optionsHtml = `<option value="unsorted" disabled ${tx.categoryId === 'unsorted' ? 'selected' : ''}>⚠️ Select Category...</option>`;
                 optionsHtml += `<option value="income" ${tx.categoryId === 'income' ? 'selected' : ''}>💵 + Inflow (Income)</option>`;
                 optionsHtml += `<option value="income_transfer" ${tx.categoryId === 'income_transfer' ? 'selected' : ''}>🔄 + Inflow (Transfer)</option>`;
+                optionsHtml += `<option value="income_p2p" ${tx.categoryId === 'income_p2p' ? 'selected' : ''}>💸 + Inflow (Peer-to-Peer)</option>`;
                 optionsHtml += `<option disabled>──────────</option>`;
                 categories.forEach(c => {
                     optionsHtml += `<option value="${c.id}" ${tx.categoryId === c.id ? 'selected' : ''}>${c.emoji} - Outflow (${c.label})</option>`;
@@ -793,18 +955,18 @@
 
                 html += `
                     <tr id="row_${tx.id}" class="${rowClass}">
-                        <td class="py-3 px-2 text-center cursor-crosshair" 
+                        <td class="py-2 px-2 text-center cursor-crosshair" 
                             onmousedown="startDragSelect('${tx.id}', event)" 
                             onmouseenter="dragEnterSelect('${tx.id}', event)">
                             <input type="checkbox" id="chk_${tx.id}" ${tx.isSelected ? 'checked' : ''} class="cursor-pointer pointer-events-none">
                         </td>
-                        <td class="py-3 px-2">
+                        <td class="py-2 px-2">
                             <input type="text" value="${tx.date}" onchange="updateDate('${tx.id}', this.value)" class="w-16 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-blue-500 outline-none text-gray-500 text-xs">
                         </td>
-                        <td class="py-3 px-2">
-                            <input type="text" value="${tx.merchant}" onchange="updateMerchant('${tx.id}', this.value)" class="w-full max-w-[150px] bg-transparent border-b border-transparent hover:border-gray-300 focus:border-blue-500 outline-none font-medium truncate text-gray-900 dark:text-gray-100 text-sm">
+                        <td class="py-2 px-2">
+                            <input type="text" value="${tx.merchant}" onchange="updateMerchant('${tx.id}', this.value)" class="w-full min-w-[200px] max-w-md bg-transparent border-b border-transparent hover:border-gray-300 focus:border-blue-500 outline-none font-medium truncate text-gray-900 dark:text-gray-100 text-sm">
                         </td>
-                        <td class="py-3 px-2 text-right ${amtColor}">
+                        <td class="py-2 px-2 text-right ${amtColor}">
                             <div class="flex justify-end items-center">
                                 <span>${sign}$</span>
                                 <input type="number" step="0.01" value="${Math.abs(tx.amount).toFixed(2)}" 
@@ -812,12 +974,12 @@
                                     onchange="updateAmount('${tx.id}', this.value)">
                             </div>
                         </td>
-                        <td class="py-3 px-2">
-                            <select class="input-field py-1 text-xs w-40" onchange="updateCategory('${tx.id}', this.value)">
+                        <td class="py-2 px-2">
+                            <select class="input-field py-1 text-xs w-48" onchange="updateCategory('${tx.id}', this.value)">
                                 ${optionsHtml}
                             </select>
                         </td>
-                        <td class="py-3 px-2 text-center">
+                        <td class="py-2 px-2 text-center">
                             <button onclick="deleteRow('${tx.id}')" class="text-gray-400 hover:text-red-500 transition-colors" title="Remove row">✕</button>
                         </td>
                     </tr>
@@ -842,7 +1004,9 @@
                 tx.categoryId = newCat;
                 if (newCat.startsWith('income')) tx.amount = Math.abs(tx.amount);
                 else tx.amount = -Math.abs(tx.amount);
+                
                 saveCustomRule(tx.merchant, newCat);
+                BayesEngine.train(tx.merchant, newCat);
             }
             renderLedger();
         }
@@ -865,16 +1029,17 @@
                 bulkBar.classList.remove('hidden');
                 const bulkSelect = document.getElementById('bulkCategorySelect');
                 
-                // Allow the dynamic population to fire if the menu only has the 4 base HTML options
-                if (bulkSelect.options.length <= 4) {
+                // Menu Population: Injects dynamic categories if only base options exist
+                if (bulkSelect.options.length <= 5) {
                     bulkSelect.innerHTML = `<option value="" disabled selected>⚠️ Set category...</option>
                                             <option value="income">💵 + Inflow (Income)</option>
                                             <option value="income_transfer">🔄 + Inflow (Transfer)</option>
+                                            <option value="income_p2p">💸 + Inflow (Peer-to-Peer)</option>
                                             <option disabled>──────────</option>`;
                     categories.forEach(c => {
                         let opt = document.createElement('option');
                         opt.value = c.id; 
-                        opt.text = `${c.emoji} - Outflow (${c.label})`; // Inject Emoji
+                        opt.text = `${c.emoji} - Outflow (${c.label})`;
                         bulkSelect.add(opt);
                     });
                 }
@@ -894,7 +1059,10 @@
                     if (newCat.startsWith('income')) tx.amount = Math.abs(tx.amount);
                     else tx.amount = -Math.abs(tx.amount);
                     tx.isSelected = false; 
+                    
                     saveCustomRule(tx.merchant, newCat);
+                    // Bulk Training: Updates the AI model with newly assigned categories
+                    BayesEngine.train(tx.merchant, newCat);
                 }
             });
             bulkSelect.value = ""; 
@@ -918,7 +1086,6 @@
             activeTx.forEach(t => {
                 if (t.categoryId.startsWith('income')) inflow += Math.abs(t.amount);
                 else outflow += Math.abs(t.amount);
-                
                 if (t.date && t.date.toLowerCase() !== 'unknown') knownDates.push(t.date);
             });
             
@@ -927,15 +1094,17 @@
             
             let net = inflow - outflow;
             let netUI = document.getElementById('netVarianceUI');
-            
-            // Enforce maximumFractionDigits to prevent UI trailing decimals
             netUI.innerText = net < 0 ? `-$${Math.abs(net).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : `$${net.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
             netUI.className = net < 0 ? "text-xl font-black text-red-600" : "text-xl font-black text-green-600";
 
             let dateRangeStr = "No dates available";
             if (knownDates.length > 0) {
+                knownDates.sort((a, b) => getComparableDate(a) - getComparableDate(b));
                 dateRangeStr = `${knownDates[0]} to ${knownDates[knownDates.length - 1]}`;
                 if (knownDates[0] === knownDates[knownDates.length - 1]) dateRangeStr = knownDates[0];
+                
+                let sumDate = document.getElementById('summaryDateRange');
+                if (sumDate) sumDate.innerText = `(${knownDates[0]} - ${knownDates[knownDates.length - 1]})`;
             }
             document.getElementById('dateRangeUI').innerText = `Date Range: ${dateRangeStr}`;
 
@@ -950,13 +1119,15 @@
             data.addColumn('string', 'From');
             data.addColumn('string', 'To');
             data.addColumn('number', 'Amount');
+            data.addColumn({type: 'string', role: 'tooltip', 'p': {'html': true}}); 
 
-            let totalIncome = 0; let totalTransfer = 0;
+            let totalIncome = 0; let totalTransfer = 0; let totalP2PIn = 0;
             let categoriesSum = {};
 
             activeTx.forEach(t => {
                 if (t.categoryId === 'income') totalIncome += Math.abs(t.amount);
                 else if (t.categoryId === 'income_transfer') totalTransfer += Math.abs(t.amount);
+                else if (t.categoryId === 'income_p2p') totalP2PIn += Math.abs(t.amount);
                 else {
                     let catObj = categories.find(c => c.id === t.categoryId);
                     let catLabel = catObj ? `${catObj.emoji} ${catObj.label}` : '📦 Misc.';
@@ -982,28 +1153,43 @@
                 return `${name}||${formatCash(val)} (${pct}%)`;
             };
 
+            const buildTooltip = (name, val) => {
+                // Delimiter Scrubbing: Removes internal tracking markers
+                let cleanName = name.replace(/\|\|.*/, ''); 
+                let pct = grandTotal > 0 ? ((val / grandTotal) * 100).toFixed(1) : 0;
+                
+                // Dark Mode Override: Enforces high-contrast text inside the SVG tooltip
+                return `<div style="padding:10px; font-family:sans-serif; min-width:120px; color:#111827;">
+                            <strong style="display:block; margin-bottom:4px;">${cleanName}</strong>
+                            <span style="color:#6B7280;">Amount:</span> <b style="color:#111827;">${formatCash(val)}</b><br/>
+                            <span style="color:#6B7280;">Flow Share:</span> <b style="color:#111827;">${pct}%</b>
+                        </div>`;
+            };
+
             let rightSideNodeCount = 0;
             let nodeTotal = formatLabel('🏦 Total Funds', grandTotal);
 
-            if (totalIncome > 0) rows.push([formatLabel('💵 Income', totalIncome), nodeTotal, { v: safeFloat(totalIncome), f: formatCash(totalIncome) }]);
-            if (totalTransfer > 0) rows.push([formatLabel('🔄 Transfers', totalTransfer), nodeTotal, { v: safeFloat(totalTransfer), f: formatCash(totalTransfer) }]);
-            if (totalOutflow > totalInflow) rows.push([formatLabel('📉 Deficit', totalOutflow - totalInflow), nodeTotal, { v: safeFloat(totalOutflow - totalInflow), f: formatCash(totalOutflow - totalInflow) }]);
+            if (totalIncome > 0) rows.push([formatLabel('💵 Income', totalIncome), nodeTotal, safeFloat(totalIncome), buildTooltip('💵 Income', totalIncome)]);
+            if (totalTransfer > 0) rows.push([formatLabel('🔄 Transfers', totalTransfer), nodeTotal, safeFloat(totalTransfer), buildTooltip('🔄 Transfers', totalTransfer)]);
+            if (totalP2PIn > 0) rows.push([formatLabel('💸 Peer-to-Peer', totalP2PIn), nodeTotal, safeFloat(totalP2PIn), buildTooltip('💸 Peer-to-Peer (In)', totalP2PIn)]);
+            if (totalOutflow > totalInflow) rows.push([formatLabel('📉 Deficit', totalOutflow - totalInflow), nodeTotal, safeFloat(totalOutflow - totalInflow), buildTooltip('📉 Deficit', totalOutflow - totalInflow)]);
 
             for (const [cat, amt] of Object.entries(categoriesSum)) {
                 if (amt > 0) {
-                    rows.push([nodeTotal, formatLabel(cat, amt), { v: safeFloat(amt), f: formatCash(amt) }]);
+                    rows.push([nodeTotal, formatLabel(cat, amt), safeFloat(amt), buildTooltip(cat, amt)]);
                     rightSideNodeCount++;
                 }
             }
 
             if (totalInflow > totalOutflow) {
-                rows.push([nodeTotal, formatLabel('🐷 Unspent Cash', totalInflow - totalOutflow), { v: safeFloat(totalInflow - totalOutflow), f: formatCash(totalInflow - totalOutflow) }]);
+                rows.push([nodeTotal, formatLabel('🐷 Unspent Cash', totalInflow - totalOutflow), safeFloat(totalInflow - totalOutflow), buildTooltip('🐷 Unspent Cash', totalInflow - totalOutflow)]);
                 rightSideNodeCount++;
             }
 
             data.addRows(rows);
             
-            let calculatedHeight = Math.max(250, rightSideNodeCount * 55); 
+            // Dynamic Height: Scales vertically based on node count, capping at 700px
+            let calculatedHeight = Math.min(Math.max(250, rightSideNodeCount * 55), 700); 
             container.style.height = calculatedHeight + 'px';
             
             let options = {
@@ -1016,15 +1202,12 @@
                     },
                     link: { colorMode: 'gradient' },
                     iterations: 0
-                }
+                },
+                tooltip: { isHtml: true } // Tooltip Configuration: Enables custom HTML tooltips
             };
-            
-            let formatter = new google.visualization.NumberFormat({ prefix: '$', fractionDigits: 2 });
-            formatter.format(data, 2); 
             
             let chart = new google.visualization.Sankey(container);
 
-            // 1. Extract the DOM mutation into a reusable function
             const applyDOMHack = () => {
                 const svgTexts = container.getElementsByTagName('text');
                 for (let i = svgTexts.length - 1; i >= 0; i--) {
@@ -1053,18 +1236,13 @@
                 }
             };
 
-            // 2. Attach a MutationObserver inside the initial ready event
             google.visualization.events.addListener(chart, 'ready', function() {
-                applyDOMHack(); // Run the initial hack
-                
-                // Create a sentinel to watch for Google Charts hover re-renders
+                applyDOMHack(); 
                 const observer = new MutationObserver(() => {
-                    observer.disconnect(); // Pause watching to prevent an infinite loop
-                    applyDOMHack();        // Re-apply our formatting
-                    observer.observe(container, { childList: true, subtree: true, characterData: true }); // Resume watching
+                    observer.disconnect(); 
+                    applyDOMHack();        
+                    observer.observe(container, { childList: true, subtree: true, characterData: true }); 
                 });
-                
-                // Start watching the diagram for changes
                 observer.observe(container, { childList: true, subtree: true, characterData: true });
             });
 
@@ -1072,12 +1250,13 @@
         }
 
         function syncToBudget() {
-            // Excludes both income and income_transfer from being synced as outflow actuals
-            let activeTx = parsedTransactions.filter(t => !t.deleted && !t.categoryId.startsWith('income'));
+            // Outflow Isolation: Excludes all inflow categories from the budget sync payload
+            let activeTx = parsedTransactions.filter(t => !t.deleted && !t.categoryId.startsWith('income') && t.categoryId !== 'unsorted');
             
             let currentState = window.FinanceState ? window.FinanceState.load() : {};
             if (!currentState.actuals) currentState.actuals = {};
             
+            // Payload Normalization: Formats data using system IDs for Budget Planner compatibility
             activeTx.forEach(t => {
                 if (!currentState.actuals[t.categoryId]) currentState.actuals[t.categoryId] = 0;
                 currentState.actuals[t.categoryId] += Math.abs(t.amount);
@@ -1088,13 +1267,11 @@
             let btn = document.getElementById('syncBtn');
             btn.innerText = "✓ Synced!";
             btn.classList.replace('bg-purple-600', 'bg-green-600');
-            
             setTimeout(() => { window.location.href = "https://nonsenseian.github.io/budgetplanner/"; }, 1000);
         }
 
         // --- CSV EXPORT ENGINE ---
         function exportToCSV() {
-            // Pull only the categorized transactions that pass the current filters
             let rawActiveTx = parsedTransactions.filter(t => !t.deleted && t.categoryId !== 'unsorted');
             let activeTx = getFilteredArray(rawActiveTx);
 
@@ -1103,26 +1280,22 @@
                 return;
             }
 
-            // Build CSV Headers
             let csvContent = "Date,Merchant,Amount,Category\n";
 
-            // Parse Data
             activeTx.forEach(tx => {
-                // Escape any internal quotes in the merchant name to prevent CSV corruption
+                // CSV Sanitization: Escapes internal quotes to prevent layout corruption
                 let safeMerchant = tx.merchant.replace(/"/g, '""');
                 
-                // Map the Category ID back to its readable label
                 let catLabel = categories.find(c => c.id === tx.categoryId)?.label || 'Misc';
                 if (tx.categoryId === 'income') catLabel = 'Inflow (Income)';
                 if (tx.categoryId === 'income_transfer') catLabel = 'Inflow (Transfer)';
+                if (tx.categoryId === 'income_p2p') catLabel = 'Inflow (Peer-to-Peer)';
 
-                // Format amount to 2 decimal places
                 let amount = tx.amount.toFixed(2);
                 
                 csvContent += `"${tx.date}","${safeMerchant}",${amount},"${catLabel}"\n`;
             });
 
-            // Create a local memory Blob and force download (Zero Server Transmission)
             let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             let link = document.createElement("a");
             
@@ -1130,7 +1303,6 @@
                 let url = URL.createObjectURL(blob);
                 link.setAttribute("href", url);
                 
-                // Generate filename with today's date
                 let today = new Date().toISOString().split('T')[0];
                 link.setAttribute("download", `transaction_summary_${today}.csv`);
                 
@@ -1138,7 +1310,7 @@
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
-                URL.revokeObjectURL(url); // Clean up memory
+                URL.revokeObjectURL(url); 
             }
         }
     </script>
