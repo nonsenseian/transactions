@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <link rel="icon" type="image/png" href="https://nonsenseian.github.io/nonsenseian_logo.png">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#111827">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nonsenseian | Smart Transaction Parser</title>
-    
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -13,36 +16,87 @@
             theme: { extend: { colors: { darkBg: '#111827', darkCard: '#1F2937', darkBorder: '#374151' } } }
         }
     </script>
-    
+
     <!-- Tesseract OCR Engine (Client-Side) -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <!-- PDF.js Engine (Client-Side) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';</script>
+
+    <!-- ECharts (Client-Side) -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://nonsenseian.github.io/global-components.js?v=2"></script>
     <!-- Google Charts (For Sankey Diagram) -->
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 
     <style>
-        body { transition: background-color 0.3s ease, color 0.3s ease; }
-        .input-field { width: 100%; padding: 0.5rem; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #F9FAFB; color: #111827; }
-        .dark .input-field { background-color: #374151; border-color: #4B5563; color: #F3F4F6; }
-        .dropzone { border: 2px dashed #6366F1; transition: all 0.2s; }
-        .dropzone.dragover { background-color: rgba(99, 102, 241, 0.1); border-color: #4F46E5; }
+        body {
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 0.5rem;
+            border-radius: 0.375rem;
+            border: 1px solid #D1D5DB;
+            background-color: #F9FAFB;
+            color: #111827;
+            transition: all 0.2s ease;
+        }
+
+        .dark .input-field {
+            background-color: #374151;
+            border-color: #4B5563;
+            color: #F3F4F6;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #3B82F6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+        }
+
+        .dropzone {
+            border: 2px dashed #6366F1;
+            transition: all 0.2s;
+        }
+
+        .dropzone.dragover {
+            background-color: rgba(99, 102, 241, 0.1);
+            border-color: #4F46E5;
+        }
+
+        .exporting .no-export {
+            display: none !important;
+        }
+
+        .exporting .export-full-height {
+            max-height: none !important;
+            overflow: visible !important;
+        }
+
+        tr {
+            page-break-inside: avoid;
+        }
     </style>
 </head>
+
 <body class="bg-gray-50 text-gray-900 dark:bg-darkBg dark:text-gray-100 font-sans min-h-screen flex flex-col">
 
     <main class="flex-grow max-w-7xl mx-auto w-full p-4 md:p-8">
-        
+
         <!-- Privacy Banner -->
         <div class="bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 p-4 rounded mb-8 shadow-sm">
             <div class="flex items-start">
                 <div class="flex-shrink-0 text-green-500">🔒</div>
                 <div class="ml-3">
-                    <h3 class="text-sm font-bold text-green-800 dark:text-green-400">Zero Server Transmission & Offline Capable</h3>
+                    <h3 class="text-sm font-bold text-green-800 dark:text-green-400">Zero Server Transmission & Offline
+                        Capable</h3>
                     <p class="text-xs text-green-700 dark:text-green-500 mt-1">
-                        Your financial screenshots are never uploaded. All OCR text extraction runs entirely within your browser's local memory using WebAssembly. Once the page loads, you can safely disconnect your internet and process statements offline.
+                        Your financial screenshots are never uploaded. All OCR text extraction runs entirely within your
+                        browser's local memory using WebAssembly. Once the page loads, you can safely disconnect your
+                        internet and process statements offline.
                     </p>
                 </div>
             </div>
@@ -50,25 +104,43 @@
 
         <div class="mb-8">
             <h1 class="text-3xl md:text-4xl font-bold text-gray-800 dark:text-gray-100">Transaction Importer</h1>
-            <p class="text-gray-500 dark:text-gray-400 mt-2">Upload bank statement screenshots. Review duplicates, categorize, and sync.</p>
+            <p class="text-gray-500 dark:text-gray-400 mt-2">Upload bank statement screenshots. Review duplicates,
+                categorize, and sync.</p>
         </div>
 
         <!-- Main Application Layout -->
-        <div class="flex flex-col gap-8">
-            
+        <div id="pdfExportContainer" class="flex flex-col gap-8">
+
+            <!-- Connected Accounts Vault -->
+            <div id="accountsVault"
+                class="hidden bg-white dark:bg-darkCard p-6 rounded-xl shadow-md border dark:border-darkBorder">
+                <h2 class="text-xl font-semibold mb-4 border-b pb-2 dark:border-darkBorder flex items-center gap-2">
+                    🔗 Connected Accounts
+                </h2>
+                <div id="vaultCardsContainer"
+                    class="grid grid-cols-1 md:grid-cols-3 gap-4 max-h-36 overflow-y-auto pr-2">
+                    <!-- Cards injected by JS -->
+                </div>
+            </div>
+
             <!-- Top Row: Upload & Analytics -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                
+
                 <!-- Upload Statements -->
-                <div class="bg-white dark:bg-darkCard p-6 rounded-xl shadow-md border dark:border-darkBorder flex flex-col justify-between">
+                <div id="uploadContainer"
+                    class="bg-white dark:bg-darkCard p-6 rounded-xl shadow-md border dark:border-darkBorder flex flex-col justify-between no-export">
                     <div>
-                        <h2 class="text-xl font-semibold mb-4 border-b pb-2 dark:border-darkBorder">Upload Bank Statements</h2>
-                        <div id="dropzone" class="dropzone rounded-xl p-8 text-center cursor-pointer bg-gray-50 dark:bg-gray-800">
+                        <h2 class="text-xl font-semibold mb-4 border-b pb-2 dark:border-darkBorder">Upload Bank
+                            Statements</h2>
+                        <div id="dropzone"
+                            class="dropzone rounded-xl p-8 text-center cursor-pointer bg-gray-50 dark:bg-gray-800">
                             <p class="text-4xl mb-2">📄</p>
                             <p class="font-bold text-gray-700 dark:text-gray-300">Drag & Drop Bank Statements</p>
                             <p class="text-xs text-gray-500 mt-2">Supports PDF, JPG, and PNG files</p>
-                            <input type="file" id="fileInput" multiple accept="image/*,application/pdf" class="hidden">
+                            <input type="file" id="fileInput" multiple
+                                accept=".csv,.ofx,.qfx,image/*,application/pdf,text/plain" class="hidden">
                         </div>
+                        <div id="uploadedFilesList" class="mt-4 max-h-32 overflow-y-auto space-y-2"></div>
                     </div>
                     <div id="progressContainer" class="hidden mt-4">
                         <p class="text-sm font-bold text-blue-600 mb-1" id="progressText">Initializing Engine...</p>
@@ -79,22 +151,27 @@
                 </div>
 
                 <!-- Cash Flow Summary -->
-                <div class="bg-white dark:bg-darkCard p-6 rounded-xl shadow-md border dark:border-darkBorder flex flex-col justify-between">
+                <div
+                    class="bg-white dark:bg-darkCard p-6 rounded-xl shadow-md border dark:border-darkBorder flex flex-col justify-between">
                     <div>
-                        <h2 class="text-xl font-semibold mb-2 border-b pb-2 dark:border-darkBorder">Cash Flow Summary</h2>
+                        <h2 class="text-xl font-semibold mb-2 border-b pb-2 dark:border-darkBorder">Cash Flow Summary
+                        </h2>
                         <p class="text-xs text-gray-500 mb-4 font-medium" id="dateRangeUI">Date Range: --</p>
-                        
+
                         <div class="grid grid-cols-2 gap-4">
-                            <div class="p-3 bg-green-50 dark:bg-green-900/20 rounded border border-green-200 dark:border-green-800">
+                            <div
+                                class="p-3 bg-green-50 dark:bg-green-900/20 rounded border border-green-200 dark:border-green-800">
                                 <p class="text-[10px] uppercase font-bold text-green-600">Total Inflow</p>
                                 <p class="text-lg font-black text-green-700 dark:text-green-400" id="inflowUI">$0.00</p>
                             </div>
-                            <div class="p-3 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800">
+                            <div
+                                class="p-3 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800">
                                 <p class="text-[10px] uppercase font-bold text-red-600">Total Outflow</p>
                                 <p class="text-lg font-black text-red-700 dark:text-red-400" id="outflowUI">$0.00</p>
                             </div>
                         </div>
-                        <div class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800 text-center">
+                        <div
+                            class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800 text-center">
                             <p class="text-[10px] uppercase font-bold text-blue-600">Net Variance</p>
                             <p class="text-xl font-black text-blue-700 dark:text-blue-400" id="netVarianceUI">$0.00</p>
                         </div>
@@ -102,115 +179,279 @@
                 </div>
             </div>
 
-            <!-- Second Row: Sankey Diagram & Export -->
+            <!-- Second Row: Charting Dashboard & Export -->
             <div class="bg-white dark:bg-darkCard p-6 rounded-xl shadow-md border dark:border-darkBorder">
-                <div class="flex justify-between items-center mb-4 border-b pb-2 dark:border-darkBorder">
-                    <h3 class="text-xl font-semibold">Transaction Flow (Sankey Diagram)</h3>
-                    <button onclick="exportToCSV()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 text-sm font-bold rounded shadow transition-colors flex items-center gap-2">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                        Export to CSV
-                    </button>
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 border-b pb-2 dark:border-darkBorder gap-4">
+                    <div class="flex flex-col md:flex-row items-start md:items-center gap-4">
+                        <h3 class="text-xl font-semibold">Spending Visualizer</h3>
+                        <div class="flex border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden no-export">
+                            <button onclick="setChartTab('sankey')" id="tabChartSankey" class="px-3 py-1 text-sm font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 transition-colors">Sankey (Flow)</button>
+                            <button onclick="setChartTab('donut')" id="tabChartDonut" class="px-3 py-1 text-sm font-semibold hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 border-l border-r border-gray-300 dark:border-gray-600 transition-colors">Donut</button>
+                            <button onclick="setChartTab('trend')" id="tabChartTrend" class="px-3 py-1 text-sm font-semibold hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 transition-colors">Trendline</button>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 no-export">
+                        <select id="exportSelect" onchange="handleExport(this.value)"
+                            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded shadow transition-colors border border-blue-700 dark:border-blue-500 cursor-pointer outline-none">
+                            <option value="" disabled selected>📥 Export Data</option>
+                            <option value="json">JSON (Budget Planner)</option>
+                            <option value="csv">CSV (Excel/Sheets)</option>
+                            <option value="pdf">PDF (Print Summary)</option>
+                        </select>
+                    </div>
                 </div>
                 <div id="sankey_basic" class="w-full min-h-[300px]"></div>
+                <div id="chartContainerDonut" class="w-full h-[600px] hidden"></div>
+                <div id="chartContainerTrend" class="w-full min-h-[300px] hidden"></div>
             </div>
 
             <!-- Third Row: Ledgers -->
             <div id="ledgerContainer" class="space-y-6">
                 <div class="bg-white dark:bg-darkCard p-6 rounded-xl shadow-md border dark:border-darkBorder">
-                    <div class="flex justify-between items-center border-b pb-4 mb-4 dark:border-darkBorder">
+                    <div
+                        class="flex justify-between items-center border-b pb-4 mb-4 dark:border-darkBorder flex-wrap gap-4">
                         <div>
-                            <h2 class="text-xl font-semibold">Transaction Summary <span id="summaryDateRange" class="text-sm font-normal text-gray-500 ml-2"></span></h2>
-                            <p class="text-xs text-gray-500 mt-1">Review your categorized transactions. Click and drag across rows to multi-select.</p>
+                            <h2 class="text-xl font-semibold">Transaction Summary <span id="summaryDateRange"
+                                    class="text-sm font-normal text-gray-500 ml-2"></span></h2>
+                            <p class="text-xs text-gray-500 mt-1">Review your categorized transactions. Click and drag
+                                across rows to multi-select.</p>
                         </div>
-                        <div class="flex gap-2">
-                            <button onclick="addManualTransaction()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded shadow transition-colors">+ Add Row</button>
-                            <button onclick="syncToBudget()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded shadow transition-colors hidden" id="syncBtn">Sync to Budget Planner</button>
+                        <div
+                            class="flex border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden no-export">
+                            <button onclick="setLedgerTab('All')" id="tabAll"
+                                class="px-4 py-1.5 text-sm font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 transition-colors">All Accounts</button>
+                            <button onclick="setLedgerTab('Checking')" id="tabChecking"
+                                class="px-4 py-1.5 text-sm font-semibold hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 border-l border-r border-gray-300 dark:border-gray-600 transition-colors">Checking</button>
+                            <button onclick="setLedgerTab('Credit')" id="tabCredit"
+                                class="px-4 py-1.5 text-sm font-semibold hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 transition-colors">Credit Cards</button>
+                        </div>
+                        <div class="flex gap-2 no-export">
+                            <button onclick="clearAllData()"
+                                class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded shadow transition-colors flex items-center gap-2"
+                                title="Permanently delete all data">🗑️ Clear Data</button>
+                            <button onclick="addManualTransaction()"
+                                class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded shadow transition-colors">+
+                                Add Row</button>
                         </div>
                     </div>
 
                     <!-- Merchant Search & Filters Bar -->
-                    <div class="mb-4 flex gap-2">
+                    <div class="mb-4 flex gap-2 no-export">
                         <div class="relative flex-grow">
                             <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">🔍</span>
-                            <input type="text" id="merchantSearch" oninput="applyFilters()" placeholder="Search merchants..." class="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500 transition-colors shadow-sm text-sm">
+                            <input type="text" id="merchantSearch" oninput="applyFilters()"
+                                placeholder="Search merchants..."
+                                class="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500 transition-colors shadow-sm text-sm">
                         </div>
-                        <button id="clearFiltersBtn" onclick="clearAllFilters()" class="hidden px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/20 dark:hover:bg-red-900/40 dark:text-red-400 text-sm font-bold rounded-lg border border-red-200 dark:border-red-800 transition-colors whitespace-nowrap shadow-sm">
+                        <button id="clearFiltersBtn" onclick="clearAllFilters()"
+                            class="hidden px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/20 dark:hover:bg-red-900/40 dark:text-red-400 text-sm font-bold rounded-lg border border-red-200 dark:border-red-800 transition-colors whitespace-nowrap shadow-sm">
                             ✕ Clear Filters
                         </button>
                     </div>
 
                     <!-- Bulk Actions Bar -->
-                    <div id="bulkActions" class="hidden sticky top-4 z-40 mb-4 p-3 bg-blue-50 dark:bg-blue-900/90 dark:backdrop-blur-sm border border-blue-200 dark:border-blue-800 rounded shadow-lg flex flex-wrap items-center gap-4 transition-all">
-                        <span class="text-sm font-bold text-blue-800 dark:text-blue-300"><span id="selectedCount">0</span> selected</span>
+                    <div id="bulkActions"
+                        class="hidden sticky top-4 z-40 mb-4 p-3 bg-blue-50 dark:bg-blue-900/90 dark:backdrop-blur-sm border border-blue-200 dark:border-blue-800 rounded shadow-lg flex flex-wrap items-center gap-4 transition-all">
+                        <span class="text-sm font-bold text-blue-800 dark:text-blue-300"><span
+                                id="selectedCount">0</span> selected</span>
                         <select id="bulkCategorySelect" class="input-field py-1 text-xs w-48">
                             <option value="" disabled selected>Set category...</option>
                             <option value="income">+ Inflow (Income)</option>
                             <option value="income_transfer">+ Inflow (Transfer)</option>
                             <option disabled>──────────</option>
                         </select>
-                        <button onclick="applyBulkCategory()" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded shadow transition-colors">Apply</button>
-                        <button onclick="deleteSelected()" class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded shadow transition-colors ml-auto">Delete Selected</button>
+                        <button onclick="applyBulkCategory()"
+                            class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded shadow transition-colors">Apply</button>
+                        <button onclick="deleteSelected()"
+                            class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded shadow transition-colors ml-auto">Delete
+                            Selected</button>
                     </div>
 
                     <!-- Restricted Height Main Ledger (Scrollable) -->
-                    <div id="mainLedgerWrapper" class="overflow-auto max-h-[800px] border-b border-gray-200 dark:border-gray-700 rounded-b-lg">
+                    <div id="mainLedgerWrapper"
+                        class="overflow-auto max-h-[800px] border-b border-gray-200 dark:border-gray-700 rounded-b-lg">
                         <!-- Main Ledger Built by JS -->
                     </div>
                 </div>
 
-                <div id="unsortedBox" class="hidden bg-yellow-50 dark:bg-yellow-900/10 p-6 rounded-xl shadow-md border border-yellow-200 dark:border-yellow-800">
-                    <h2 class="text-lg font-bold text-yellow-800 dark:text-yellow-500 mb-2">⚠️ Unsorted Transactions (Action Required)</h2>
-                    <p class="text-xs text-yellow-700 dark:text-yellow-600 mb-2">Please assign a category to move these to the main ledger.</p>
-                    <p id="mathWarningText" class="text-xs font-bold text-red-600 dark:text-red-400 mb-4 hidden">The engine could not properly verify the account balance. We recommend uploading a full screenshot or the bank statement PDF to enable mathematical verification.</p>
-                    
+                <div id="unsortedBox"
+                    class="hidden bg-yellow-50 dark:bg-yellow-900/10 p-6 rounded-xl shadow-md border border-yellow-200 dark:border-yellow-800">
+                    <h2 class="text-lg font-bold text-yellow-800 dark:text-yellow-500 mb-2">⚠️ Unsorted Transactions
+                        (Action Required)</h2>
+                    <p class="text-xs text-yellow-700 dark:text-yellow-600 mb-2">Please assign a category to move these
+                        to the main ledger.</p>
+                    <p id="mathWarningText" class="text-xs font-bold text-red-600 dark:text-red-400 mb-4 hidden">The
+                        engine could not properly verify the account balance. We recommend uploading a full screenshot
+                        or the bank statement PDF to enable mathematical verification.</p>
+
                     <!-- Restricted Height Unsorted Ledger (Scrollable) -->
-                    <div id="unsortedLedgerWrapper" class="overflow-auto max-h-[800px] border-b border-yellow-200 dark:border-yellow-800 rounded-b-lg">
+                    <div id="unsortedLedgerWrapper"
+                        class="overflow-auto max-h-[800px] border-b border-yellow-200 dark:border-yellow-800 rounded-b-lg">
                         <!-- Unsorted Ledger Built by JS -->
                     </div>
                 </div>
             </div>
 
             <!-- Filter Popups (Hidden) -->
-            <div id="filterOverlay" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center backdrop-blur-sm" onclick="closeFilterModal(event)">
-                <div id="filterModal" class="bg-white dark:bg-darkCard p-6 rounded-xl shadow-2xl w-80 max-w-full m-4" onclick="event.stopPropagation()">
+            <div id="filterOverlay"
+                class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center backdrop-blur-sm"
+                onclick="closeFilterModal(event)">
+                <div id="filterModal" class="bg-white dark:bg-darkCard p-6 rounded-xl shadow-2xl w-80 max-w-full m-4"
+                    onclick="event.stopPropagation()">
                     <h3 id="filterTitle" class="text-lg font-bold mb-4 dark:text-gray-100">Filter</h3>
                     <div id="filterContent" class="space-y-4 mb-6"></div>
                     <div class="flex justify-between">
-                        <button onclick="clearCurrentFilter()" class="px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors">Clear</button>
+                        <button onclick="clearCurrentFilter()"
+                            class="px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors">Clear</button>
                         <div class="flex gap-2">
-                            <button onclick="closeFilterModal()" class="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors">Cancel</button>
-                            <button onclick="applyFilters()" class="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors shadow">Apply</button>
+                            <button onclick="closeFilterModal()"
+                                class="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors">Cancel</button>
+                            <button onclick="applyFilters()"
+                                class="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors shadow">Apply</button>
                         </div>
                     </div>
                 </div>
             </div>
 
         </div>
+
+        <div class="flex justify-center mt-8 pb-8 no-export">
+            <button onclick="resetAIModel()"
+                class="px-4 py-2 text-xs font-medium text-gray-400 hover:text-red-500 dark:text-gray-600 dark:hover:text-red-400 transition-colors flex items-center gap-2 opacity-60 hover:opacity-100">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                    </path>
+                </svg>
+                Reset Memory
+            </button>
+        </div>
     </main>
 
     <script>
         let rawTransactions = [];
         let parsedTransactions = [];
-        let dateSortAscending = true; 
+        let connectedAccounts = [];
+        let uploadedFiles = [];
+        let dateSortAscending = true;
+        let merchantSortAscending = true;
+        let amountSortAscending = false;
+        let sortColumn = 'date';
+
+        function saveProgress() {
+            localStorage.setItem('budgetAppProgress', JSON.stringify({
+                parsedTransactions: parsedTransactions,
+                uploadedFiles: uploadedFiles
+            }));
+        }
+
+        function loadProgress() {
+            let saved = localStorage.getItem('budgetAppProgress');
+            if (saved) {
+                try {
+                    let data = JSON.parse(saved);
+                    parsedTransactions = data.parsedTransactions || [];
+                    uploadedFiles = data.uploadedFiles || [];
+                    rebuildConnectedAccounts();
+                    renderLedger();
+                    renderUploadedFiles();
+                } catch (e) { }
+            }
+        }
+
+        function clearAllData() {
+            if (!confirm("Are you sure you want to permanently clear all data?")) return;
+            localStorage.removeItem('budgetAppProgress');
+            parsedTransactions = [];
+            rawTransactions = [];
+            uploadedFiles = [];
+            connectedAccounts = [];
+            rebuildConnectedAccounts();
+            renderLedger();
+            renderUploadedFiles();
+        }
+
+        function renderUploadedFiles() {
+            let container = document.getElementById('uploadedFilesList');
+            if (!container) return;
+            container.innerHTML = uploadedFiles.map((f, idx) => `
+                <div class="flex justify-between items-center bg-gray-100 dark:bg-gray-800 p-2 rounded text-sm text-gray-700 dark:text-gray-300">
+                    <span class="truncate" title="${escapeHTML(f)}">${escapeHTML(f)}</span>
+                    <button onclick="removeFileByIndex(${idx})" class="text-red-500 hover:text-red-700 ml-2 font-bold px-2">✕</button>
+                </div>
+            `).join('');
+        }
+
+        function removeFileByIndex(index) {
+            let fileName = uploadedFiles[index];
+            if (!fileName) return;
+            uploadedFiles.splice(index, 1);
+            parsedTransactions = parsedTransactions.filter(tx => tx.sourceFile !== fileName);
+            rebuildConnectedAccounts();
+            renderUploadedFiles();
+            renderLedger();
+            saveProgress();
+        }
+
+        function rebuildConnectedAccounts() {
+            let accMap = {};
+            parsedTransactions.forEach(tx => {
+                if (tx.deleted) return;
+                let key = tx.sourceFile || "Unknown";
+                if (!accMap[key]) {
+                    accMap[key] = { name: key.substring(0, 25), type: tx.accountType, count: 0 };
+                }
+                accMap[key].count++;
+            });
+            connectedAccounts = Object.values(accMap);
+            renderVault();
+        }
 
         // Centralized Sorting Engine
         function sortTransactions() {
             parsedTransactions.sort((a, b) => {
-                let diff = getComparableDate(a.date) - getComparableDate(b.date);
-                return dateSortAscending ? diff : -diff;
+                if (sortColumn === 'date') {
+                    let diff = getComparableDate(a.date) - getComparableDate(b.date);
+                    if (diff === 0) {
+                        diff = a.amount - b.amount;
+                        if (diff === 0) diff = a.merchant.localeCompare(b.merchant);
+                    }
+                    return dateSortAscending ? diff : -diff;
+                } else if (sortColumn === 'merchant') {
+                    let diff = a.merchant.localeCompare(b.merchant);
+                    if (diff === 0) {
+                        diff = getComparableDate(a.date) - getComparableDate(b.date);
+                        if (diff === 0) diff = a.amount - b.amount;
+                    }
+                    return merchantSortAscending ? diff : -diff;
+                } else if (sortColumn === 'amount') {
+                    let diff = Math.abs(a.amount) - Math.abs(b.amount);
+                    if (diff === 0) {
+                        diff = getComparableDate(a.date) - getComparableDate(b.date);
+                    }
+                    return amountSortAscending ? diff : -diff;
+                }
             });
         }
 
         // Sort Direction Toggle
         function toggleDateSort() {
+            sortColumn = 'date';
             dateSortAscending = !dateSortAscending;
+            sortTransactions();
+            renderLedger();
+        }
+
+        function toggleMerchantSort() {
+            sortColumn = 'merchant';
+            merchantSortAscending = !merchantSortAscending;
             sortTransactions();
             renderLedger();
         }
 
         // --- FILTERING ENGINE ---
         let filters = {
-            search: "", dateStart: "", dateEnd: "", amountMin: "", amountMax: "", categories: []
+            search: "", dateStart: "", dateEnd: "", amountMin: "", amountMax: "", type: "all", categories: []
         };
         let activeModalType = null;
 
@@ -218,7 +459,7 @@
             activeModalType = type;
             const title = document.getElementById('filterTitle');
             const content = document.getElementById('filterContent');
-            
+
             if (type === 'date') {
                 title.innerText = "Filter by Date Range";
                 content.innerHTML = `
@@ -228,17 +469,30 @@
                     <input type="date" id="inputDateEnd" value="${filters.dateEnd}" class="input-field mt-1"></div>
                 `;
             } else if (type === 'amount') {
-                title.innerText = "Filter by Amount Range";
+                title.innerText = "Filter by Amount Range & Type";
+                let sortVal = sortColumn === 'amount' ? (amountSortAscending ? 'asc' : 'desc') : '';
                 content.innerHTML = `
+                    <div class="mb-4"><label class="text-xs font-bold text-gray-500 uppercase">Transaction Type</label>
+                    <select id="inputTypeFilter" class="input-field mt-1">
+                        <option value="all" ${filters.type === 'all' ? 'selected' : ''}>All</option>
+                        <option value="inflow" ${filters.type === 'inflow' ? 'selected' : ''}>Inflow Only (+)</option>
+                        <option value="outflow" ${filters.type === 'outflow' ? 'selected' : ''}>Outflow Only (-)</option>
+                    </select></div>
                     <div><label class="text-xs font-bold text-gray-500 uppercase">Minimum Amount ($)</label>
                     <input type="number" step="0.01" id="inputAmtMin" value="${filters.amountMin}" class="input-field mt-1"></div>
                     <div><label class="text-xs font-bold text-gray-500 uppercase">Maximum Amount ($)</label>
                     <input type="number" step="0.01" id="inputAmtMax" value="${filters.amountMax}" class="input-field mt-1"></div>
+                    <div class="mt-4"><label class="text-xs font-bold text-gray-500 uppercase">Sort Order</label>
+                    <select id="inputAmtSort" class="input-field mt-1">
+                        <option value="" ${sortVal === '' ? 'selected' : ''}>Default</option>
+                        <option value="desc" ${sortVal === 'desc' ? 'selected' : ''}>Highest to Lowest</option>
+                        <option value="asc" ${sortVal === 'asc' ? 'selected' : ''}>Lowest to Highest</option>
+                    </select></div>
                 `;
             } else if (type === 'category') {
                 title.innerText = "Filter by Category";
                 let allChecked = (filters.categories.length === 0) ? 'checked' : '';
-                
+
                 // Master Toggle: Select/Deselect all category filters
                 let chkHtml = `
                     <div class="mb-3 pb-3 border-b border-gray-200 dark:border-gray-700">
@@ -248,15 +502,18 @@
                         </label>
                     </div>
                     <div class="max-h-60 overflow-y-auto space-y-2 pr-2">`;
-                
+
                 let allCats = [
-                    {id: 'income', label: '💵 + Inflow (Income)'}, 
-                    {id: 'income_transfer', label: '🔄 + Inflow (Transfer)'}, 
-                    {id: 'income_p2p', label: '💸 + Inflow (Peer-to-Peer)'}, 
-                    {id: 'unsorted', label: '⚠️ Unsorted'}
+                    { id: 'income', label: '💵 + Inflow (Income)' },
+                    { id: 'income_transfer', label: '🔄 + Inflow (Transfer)' },
+                    { id: 'income_p2p', label: '💸 + Inflow (Peer-to-Peer)' },
+                    { id: 'unsorted', label: '⚠️ Unsorted' }
                 ];
-                categories.forEach(c => allCats.push({id: c.id, label: `${c.emoji} - Outflow (${c.label})`}));
-                
+                categories.forEach(c => {
+                    let typeLabel = c.id === 'catTransfer' ? 'Transfer' : 'Outflow';
+                    allCats.push({ id: c.id, label: `${c.emoji} - ${typeLabel} (${c.label})` });
+                });
+
                 allCats.forEach(c => {
                     let isChecked = filters.categories.length === 0 || filters.categories.includes(c.id) ? 'checked' : '';
                     // Child Toggle Logic: Updates the master checkbox state dynamically
@@ -267,7 +524,7 @@
                 });
                 content.innerHTML = chkHtml + `</div>`;
             }
-            
+
             document.getElementById('filterOverlay').classList.remove('hidden');
         }
 
@@ -285,7 +542,12 @@
 
         function clearCurrentFilter() {
             if (activeModalType === 'date') { filters.dateStart = ""; filters.dateEnd = ""; }
-            if (activeModalType === 'amount') { filters.amountMin = ""; filters.amountMax = ""; }
+            if (activeModalType === 'amount') { 
+                filters.amountMin = ""; 
+                filters.amountMax = ""; 
+                if (sortColumn === 'amount') sortColumn = 'date';
+                sortTransactions();
+            }
             if (activeModalType === 'category') { filters.categories = []; }
             closeFilterModal();
             renderLedger();
@@ -293,24 +555,36 @@
 
         function applyFilters() {
             filters.search = document.getElementById('merchantSearch').value.toLowerCase();
-            
+
             if (activeModalType === 'date') {
                 filters.dateStart = document.getElementById('inputDateStart').value;
                 filters.dateEnd = document.getElementById('inputDateEnd').value;
             }
             if (activeModalType === 'amount') {
+                filters.type = document.getElementById('inputTypeFilter').value;
                 filters.amountMin = document.getElementById('inputAmtMin').value;
                 filters.amountMax = document.getElementById('inputAmtMax').value;
+                let sortVal = document.getElementById('inputAmtSort').value;
+                if (sortVal === 'asc') {
+                    sortColumn = 'amount';
+                    amountSortAscending = true;
+                } else if (sortVal === 'desc') {
+                    sortColumn = 'amount';
+                    amountSortAscending = false;
+                } else {
+                    if (sortColumn === 'amount') sortColumn = 'date';
+                }
+                sortTransactions();
             }
             if (activeModalType === 'category') {
                 const checked = document.querySelectorAll('.filter-cat-chk:checked');
                 const total = document.querySelectorAll('.filter-cat-chk').length;
-                if (checked.length === total || checked.length === 0) filters.categories = []; 
+                if (checked.length === total || checked.length === 0) filters.categories = [];
                 else filters.categories = Array.from(checked).map(cb => cb.value);
             }
-            
+
             closeFilterModal();
-            
+
             let hasActiveFilters = filters.search || filters.dateStart || filters.dateEnd || filters.amountMin || filters.amountMax || filters.categories.length > 0;
             const clearBtn = document.getElementById('clearFiltersBtn');
             if (clearBtn) {
@@ -322,12 +596,14 @@
         }
 
         function clearAllFilters() {
-            filters = { search: "", dateStart: "", dateEnd: "", amountMin: "", amountMax: "", categories: [] };
+            filters = { search: "", dateStart: "", dateEnd: "", amountMin: "", amountMax: "", type: "all", categories: [] };
             document.getElementById('merchantSearch').value = "";
-            
+            if (sortColumn === 'amount') sortColumn = 'date';
+            sortTransactions();
+
             const clearBtn = document.getElementById('clearFiltersBtn');
             if (clearBtn) clearBtn.classList.add('hidden');
-            
+
             closeFilterModal();
             renderLedger();
         }
@@ -335,7 +611,7 @@
         // Helper: Convert YYYY-MM-DD or MM/DD/YYYY string to reliable comparable Date value
         function getComparableDate(dateStr) {
             if (!dateStr || dateStr.toLowerCase() === 'unknown') return 0;
-            
+
             // Intercept standard YYYY-MM-DD from the HTML date picker modal
             if (dateStr.match(/^\d{4}\-\d{2}\-\d{2}$/)) {
                 let parts = dateStr.split('-');
@@ -345,7 +621,9 @@
             // Handle the standardized MM/DD/YYYY from the parser
             let parts = dateStr.split(/[\/\-]/);
             if (parts.length === 3) {
-                return new Date(parseInt(parts[2], 10), parseInt(parts[0], 10) - 1, parseInt(parts[1], 10)).getTime();
+                let year = parseInt(parts[2], 10);
+                if (year < 100) year += 2000;
+                return new Date(year, parseInt(parts[0], 10) - 1, parseInt(parts[1], 10)).getTime();
             }
             return 0;
         }
@@ -353,64 +631,79 @@
         function getFilteredArray(txArray) {
             return txArray.filter(tx => {
                 if (tx.deleted) return false;
-                
+
                 if (filters.search && !tx.merchant.toLowerCase().includes(filters.search)) return false;
-                
+
                 if (filters.dateStart || filters.dateEnd) {
                     let txTime = getComparableDate(tx.date);
-                    if (txTime === 0) return false; 
+                    if (txTime === 0) return false;
                     if (filters.dateStart && txTime < getComparableDate(filters.dateStart)) return false;
                     if (filters.dateEnd && txTime > getComparableDate(filters.dateEnd)) return false;
                 }
-                
+                if (filters.type === 'inflow' && tx.amount < 0) return false;
+                if (filters.type === 'outflow' && tx.amount >= 0) return false;
+
                 let amt = Math.abs(tx.amount);
                 if (filters.amountMin !== "" && amt < parseFloat(filters.amountMin)) return false;
                 if (filters.amountMax !== "" && amt > parseFloat(filters.amountMax)) return false;
-                
+
                 if (filters.categories.length > 0 && !filters.categories.includes(tx.categoryId)) return false;
-                
+
                 return true;
             });
         }
-        
+
         // Categories & Emojis
         const categories = [
-            { id: 'catHousing', label: 'Housing', emoji: '🏠' }, 
+            { id: 'catHousing', label: 'Housing', emoji: '🏠' },
             { id: 'catGroceries', label: 'Groceries', emoji: '🛒' },
-            { id: 'catDining', label: 'Dining', emoji: '🍽️' }, 
+            { id: 'catDining', label: 'Dining', emoji: '🍽️' },
             { id: 'catTransport', label: 'Transportation', emoji: '🚗' },
-            { id: 'catUtilities', label: 'Utilities', emoji: '⚡' }, 
+            { id: 'catUtilities', label: 'Utilities', emoji: '⚡' },
             { id: 'catWellness', label: 'Health & Wellness', emoji: '⚕️' },
-            { id: 'catPersonalCare', label: 'Personal Care', emoji: '✂️' }, 
-            { id: 'catEducation', label: 'Education', emoji: '🎓' }, 
-            { id: 'catPets', label: 'Pets', emoji: '🐾' }, 
+            { id: 'catPersonalCare', label: 'Personal Care', emoji: '✂️' },
+            { id: 'catEducation', label: 'Education', emoji: '🎓' },
+            { id: 'catPets', label: 'Pets', emoji: '🐾' },
             { id: 'catSubscriptions', label: 'Subscriptions', emoji: '🔁' },
-            { id: 'catEntertainment', label: 'Entertainment', emoji: '🎬' }, 
+            { id: 'catEntertainment', label: 'Entertainment', emoji: '🎬' },
             { id: 'catTravel', label: 'Travel', emoji: '✈️' },
-            { id: 'catShopping', label: 'Shopping', emoji: '🛍️' }, 
-            { id: 'catGifts', label: 'Gifts & Donations', emoji: '🎁' }, 
+            { id: 'catShopping', label: 'Shopping', emoji: '🛍️' },
+            { id: 'catGifts', label: 'Gifts & Donations', emoji: '🎁' },
             { id: 'catMisc', label: 'Misc.', emoji: '📦' },
-            { id: 'catFees', label: 'Fees & Charges', emoji: '🏦' }, 
-            { id: 'catSavings', label: 'Savings', emoji: '💰' }, 
+            { id: 'catFees', label: 'Fees & Charges', emoji: '🏦' },
+            { id: 'catSavings', label: 'Savings', emoji: '💰' },
             { id: 'catInvesting', label: 'Investing', emoji: '📈' },
             { id: 'catDebt', label: 'Debt Payment', emoji: '💳' },
-            { id: 'catP2P', label: 'Peer-to-Peer', emoji: '💸' } 
+            { id: 'catP2P', label: 'Peer-to-Peer', emoji: '💸' },
+            { id: 'catTransfer', label: 'Internal Transfer', emoji: '🔄' }
         ];
 
         // Keyword Dictionary for Auto-Categorization
         const keywordMap = {
-            'venmo': 'catP2P', 'zelle': 'catP2P', 'cashapp': 'catP2P', 'paypal': 'catP2P', 
-            'uber': 'catTransport', 'lyft': 'catTransport', 'shell': 'catTransport', 'chevron': 'catTransport', 'arco': 'catTransport',
-            'whole foods': 'catGroceries', 'safeway': 'catGroceries', 'trader joe': 'catGroceries', 'kroger': 'catGroceries',
-            'mcdonalds': 'catDining', 'starbucks': 'catDining', 'doordash': 'catDining', 'restaurant': 'catDining',
-            'pge': 'catUtilities', 'comcast': 'catUtilities', 'att': 'catUtilities', 'verizon': 'catUtilities',
-            'cvs': 'catWellness', 'walgreens': 'catWellness', 'gym': 'catWellness', 'planet fitness': 'catWellness',
-            'amazon': 'catShopping', 'target': 'catShopping', 'walmart': 'catShopping',
-            'credit': 'catDebt', 'loan': 'catDebt', 'chase card': 'catDebt', 'amex': 'catDebt', 'discover': 'catDebt', 'payment': 'catDebt',
-            'netflix': 'catSubscriptions', 'spotify': 'catSubscriptions', 'hulu': 'catSubscriptions', 'patreon': 'catSubscriptions', 'apple': 'catSubscriptions',
-            'petco': 'catPets', 'chewy': 'catPets', 'petsmart': 'catPets', 
-            'university': 'catEducation', 'college': 'catEducation', 
-            'fee': 'catFees', 'interest charge': 'catFees' 
+            // P2P / Transfers
+            'venmo': 'catP2P', 'zelle': 'catP2P', 'cashapp': 'catP2P', 'cash app': 'catP2P', 'paypal': 'catP2P', 'apple cash': 'catP2P', 'transfer': 'catTransfer', 'wire': 'catTransfer', 'deposit': 'catTransfer',
+            // Groceries
+            'whole foods': 'catGroceries', 'safeway': 'catGroceries', 'trader joe': 'catGroceries', 'kroger': 'catGroceries', 'grocery': 'catGroceries', 'albertsons': 'catGroceries', 'publix': 'catGroceries', 'aldi': 'catGroceries', 'vons': 'catGroceries', 'wegmans': 'catGroceries', 'heb': 'catGroceries', 'sprouts': 'catGroceries', 'meijer': 'catGroceries', 'food lion': 'catGroceries', 'save mart': 'catGroceries', 'winco': 'catGroceries', 'ralphs': 'catGroceries', 'instacart': 'catGroceries', 'fresh direct': 'catGroceries', 'costco': 'catGroceries', 'sam\'s club': 'catGroceries', 'bj\'s': 'catGroceries', 'supermarket': 'catGroceries',
+            // Dining / Food
+            'mcdonalds': 'catDining', 'starbucks': 'catDining', 'doordash': 'catDining', 'restaurant': 'catDining', 'uber eats': 'catDining', 'grubhub': 'catDining', 'postmates': 'catDining', 'chipotle': 'catDining', 'subway': 'catDining', 'burger king': 'catDining', 'wendys': 'catDining', 'taco bell': 'catDining', 'chick-fil-a': 'catDining', 'dominos': 'catDining', 'pizza hut': 'catDining', 'papa johns': 'catDining', 'dunkin': 'catDining', 'panera': 'catDining', 'kfc': 'catDining', 'sonic': 'catDining', 'dairy queen': 'catDining', 'arby': 'catDining', 'cafe': 'catDining', 'coffee': 'catDining', 'grill': 'catDining', 'sushi': 'catDining', 'steakhouse': 'catDining', 'pizza': 'catDining', 'barbeque': 'catDining', 'bbq': 'catDining', 'bistro': 'catDining', 'diner': 'catDining', 'bakery': 'catDining', 'bar &': 'catDining', 'brewery': 'catDining', 'pub': 'catDining', 'tavern': 'catDining', 'cantina': 'catDining',
+            // Transport / Auto
+            'uber': 'catTransport', 'lyft': 'catTransport', 'shell': 'catTransport', 'chevron': 'catTransport', 'arco': 'catTransport', 'exxon': 'catTransport', 'mobil': 'catTransport', 'speedway': 'catTransport', 'sunoco': 'catTransport', 'wawa': 'catTransport', '7-eleven': 'catTransport', '7 eleven': 'catTransport', 'quiktrip': 'catTransport', 'valero': 'catTransport', 'bp ': 'catTransport', 'citgo': 'catTransport', 'pilot flying': 'catTransport', 'love\'s': 'catTransport', 'gas': 'catTransport', 'fuel': 'catTransport', 'parking': 'catTransport', 'transit': 'catTransport', 'metro': 'catTransport', 'toll': 'catTransport', 'ez pass': 'catTransport', 'fas-trak': 'catTransport', 'amtrak': 'catTransport', 'tesla': 'catTransport', 'auto': 'catTransport', 'repair': 'catTransport', 'mechanic': 'catTransport', 'tire': 'catTransport',
+            // Shopping
+            'amazon': 'catShopping', 'target': 'catShopping', 'walmart': 'catShopping', 'best buy': 'catShopping', 'home depot': 'catShopping', 'lowes': 'catShopping', 'ikea': 'catShopping', 'macys': 'catShopping', 'nordstrom': 'catShopping', 'kohl': 'catShopping', 'jcpenney': 'catShopping', 'tj maxx': 'catShopping', 'marshalls': 'catShopping', 'ross': 'catShopping', 'nike': 'catShopping', 'adidas': 'catShopping', 'sephora': 'catShopping', 'ulta': 'catShopping', 'gamestop': 'catShopping', 'etsy': 'catShopping', 'wayfair': 'catShopping', 'clothing': 'catShopping', 'boutique': 'catShopping', 'mall': 'catShopping', 'store': 'catShopping', 'apparel': 'catShopping', 'hobby': 'catShopping',
+            // Utilities
+            'pge': 'catUtilities', 'pg&e': 'catUtilities', 'comcast': 'catUtilities', 'att': 'catUtilities', 'at&t': 'catUtilities', 'verizon': 'catUtilities', 't-mobile': 'catUtilities', 'sprint': 'catUtilities', 'spectrum': 'catUtilities', 'xfinity': 'catUtilities', 'cox': 'catUtilities', 'optimum': 'catUtilities', 'conedison': 'catUtilities', 'national grid': 'catUtilities', 'duke energy': 'catUtilities', 'southern company': 'catUtilities', 'dominion': 'catUtilities', 'water': 'catUtilities', 'power': 'catUtilities', 'electric': 'catUtilities', 'gas company': 'catUtilities', 'trash': 'catUtilities', 'waste management': 'catUtilities', 'utility': 'catUtilities',
+            // Wellness / Health
+            'cvs': 'catWellness', 'walgreens': 'catWellness', 'rite aid': 'catWellness', 'gym': 'catWellness', 'planet fitness': 'catWellness', 'la fitness': 'catWellness', '24 hour fitness': 'catWellness', 'anytime fitness': 'catWellness', 'equinox': 'catWellness', 'orangetheory': 'catWellness', 'hospital': 'catWellness', 'clinic': 'catWellness', 'dental': 'catWellness', 'dentist': 'catWellness', 'medical': 'catWellness', 'doctor': 'catWellness', 'pharmacy': 'catWellness', 'kaiser': 'catWellness', 'health': 'catWellness', 'care': 'catWellness', 'therapy': 'catWellness', 'massage': 'catWellness', 'spa': 'catWellness',
+            // Subscriptions / Entertainment
+            'netflix': 'catSubscriptions', 'spotify': 'catSubscriptions', 'hulu': 'catSubscriptions', 'patreon': 'catSubscriptions', 'disney': 'catSubscriptions', 'hbo': 'catSubscriptions', 'max.com': 'catSubscriptions', 'prime video': 'catSubscriptions', 'youtube premium': 'catSubscriptions', 'apple.com/bill': 'catSubscriptions', 'apple': 'catSubscriptions', 'playstation': 'catSubscriptions', 'xbox': 'catSubscriptions', 'nintendo': 'catSubscriptions', 'steam': 'catEntertainment', 'amc': 'catEntertainment', 'regal': 'catEntertainment', 'cinemark': 'catEntertainment', 'ticketmaster': 'catEntertainment', 'stubhub': 'catEntertainment', 'eventbrite': 'catEntertainment', 'movie': 'catEntertainment', 'theater': 'catEntertainment', 'cinema': 'catEntertainment',
+            // Debt / Finance / Housing
+            'credit': 'catDebt', 'loan': 'catDebt', 'chase card': 'catDebt', 'amex': 'catDebt', 'discover': 'catDebt', 'payment': 'catDebt', 'capital one': 'catDebt', 'bank of america': 'catDebt', 'citi': 'catDebt', 'wells fargo': 'catDebt', 'barclays': 'catDebt', 'synchrony': 'catDebt', 'affirm': 'catDebt', 'klarna': 'catDebt', 'afterpay': 'catDebt', 'mortgage': 'catHousing', 'rent': 'catHousing',
+            // Pets
+            'petco': 'catPets', 'chewy': 'catPets', 'petsmart': 'catPets', 'vet': 'catPets', 'veterinary': 'catPets', 'pet hospital': 'catPets', 'pet clinic': 'catPets', 'animal hospital': 'catPets',
+            // Education
+            'university': 'catEducation', 'college': 'catEducation', 'school': 'catEducation', 'tuition': 'catEducation', 'student loan': 'catEducation', 'navient': 'catEducation', 'nelnet': 'catEducation', 'great lakes': 'catEducation', 'mohela': 'catEducation', 'aidvantage': 'catEducation',
+            // Fees
+            'fee': 'catFees', 'interest charge': 'catFees', 'overdraft': 'catFees', 'late payment': 'catFees', 'annual membership': 'catFees'
         };
 
         // --- CLIENT-SIDE NAIVE BAYES CLASSIFIER (AI ENGINE) ---
@@ -419,11 +712,11 @@
             model: JSON.parse(localStorage.getItem('tx_ml_model')) || { catCounts: {}, wordCounts: {}, totalTx: 0, vocab: [] },
 
             // Tokenizer: Normalizes text and filters out common stop-words
-            tokenize: function(text) {
+            tokenize: function (text) {
                 return text.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2);
             },
 
-            train: function(merchant, category) {
+            train: function (merchant, category) {
                 // Model Training: Restricts learning to expense categories to maintain accuracy
                 if (category === 'unsorted' || category.startsWith('income')) return;
 
@@ -442,7 +735,7 @@
                 localStorage.setItem('tx_ml_model', JSON.stringify(this.model));
             },
 
-            predict: function(merchant) {
+            predict: function (merchant) {
                 // Model Prediction: Requires a baseline of 10 transactions to ensure statistical relevance
                 if (this.model.totalTx < 10) return null;
 
@@ -514,9 +807,9 @@
             document.getElementById('progressContainer').classList.remove('hidden');
             let progText = document.getElementById('progressText');
             let progBar = document.getElementById('progressBar');
-            
+
             rawTransactions = [];
-            
+
             try {
                 let worker = null;
                 const hasImages = Array.from(files).some(f => f.type.startsWith('image/'));
@@ -533,13 +826,24 @@
 
                 for (let i = 0; i < files.length; i++) {
                     const file = files[i];
+                    if (uploadedFiles.includes(file.name)) continue;
+                    uploadedFiles.push(file.name);
+
                     progText.innerText = `Analyzing File ${i + 1} of ${files.length} (${file.name})...`;
                     progBar.style.width = '50%';
-                    
-                    if (file.type === 'application/pdf') {
+
+                    if (file.name.toLowerCase().endsWith('.csv')) {
+                        const rawText = await file.text();
+                        extractFromCSV(rawText, file.name);
+
+                    } else if (file.name.toLowerCase().endsWith('.ofx') || file.name.toLowerCase().endsWith('.qfx')) {
+                        const rawText = await file.text();
+                        extractFromOFX(rawText, file.name);
+
+                    } else if (file.type === 'application/pdf') {
                         const arrayBuffer = await file.arrayBuffer();
                         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-                        
+
                         let textItems = [];
                         for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
                             const page = await pdf.getPage(pageNum);
@@ -550,11 +854,11 @@
                                 textItems.push({ str: item.str, x: item.transform[4], y: adjustedY });
                             });
                         }
-                        
+
                         // Row Clustering: Groups text items within an 8px Y-axis tolerance to reconstruct table rows
                         textItems.sort((a, b) => {
                             let yDiff = b.y - a.y;
-                            if (Math.abs(yDiff) < 8) return a.x - b.x; 
+                            if (Math.abs(yDiff) < 8) return a.x - b.x;
                             return yDiff;
                         });
 
@@ -565,93 +869,361 @@
                             fullText += item.str + " ";
                             lastY = item.y;
                         });
-                        
-                        extractTransactions(fullText);
-                        
+
+                        extractTransactions(fullText, file.name);
+
                     } else if (file.type.startsWith('image/')) {
                         const imageUrl = URL.createObjectURL(file);
                         const ret = await worker.recognize(imageUrl);
                         URL.revokeObjectURL(imageUrl);
-                        extractTransactions(ret.data.text);
+                        extractTransactions(ret.data.text, file.name);
                     }
                 }
-                
+
                 if (worker) await worker.terminate();
-                
+
                 progText.innerText = "Processing Complete!";
                 progText.classList.replace('text-blue-600', 'text-green-600');
                 progBar.classList.replace('bg-blue-600', 'bg-green-500');
                 progBar.style.width = '100%';
-                
-                setTimeout(() => { 
-                    document.getElementById('progressContainer').classList.add('hidden'); 
+
+                setTimeout(() => {
+                    document.getElementById('progressContainer').classList.add('hidden');
                     progText.classList.replace('text-green-600', 'text-blue-600');
                     progBar.classList.replace('bg-green-500', 'bg-blue-600');
                     progBar.style.width = '0%';
                 }, 2000);
-                
+
                 detectDuplicatesAndRender();
 
             } catch (err) {
                 progText.innerText = "Error: " + (err.message || "Failed to process file.");
                 progText.classList.replace('text-blue-600', 'text-red-600');
-                console.error(err);
             }
         }
 
         function autoCategorizeExpense(merchant) {
             let lowerM = merchant.toLowerCase();
-            
+
             for (const [key, catId] of Object.entries(keywordMap)) {
                 if (lowerM.includes(key)) return catId;
             }
-            
+
             let aiPrediction = BayesEngine.predict(merchant);
             if (aiPrediction) return aiPrediction;
 
-            return 'catMisc'; 
+            return 'catMisc';
         }
 
         function detectDuplicatesAndRender() {
-            parsedTransactions = [...rawTransactions].sort((a, b) => a.amount - b.amount);
-            
+            let existingIds = new Set(parsedTransactions.map(t => t.id));
+            rawTransactions.forEach(rtx => {
+                if (!existingIds.has(rtx.id)) parsedTransactions.push(rtx);
+            });
+            rawTransactions = [];
+
+            parsedTransactions.sort((a, b) => a.amount - b.amount);
+
             for (let i = 0; i < parsedTransactions.length - 1; i++) {
-                if (parsedTransactions[i].amount === parsedTransactions[i+1].amount) {
+                if (parsedTransactions[i].amount === parsedTransactions[i + 1].amount) {
                     let str1 = parsedTransactions[i].merchant.substring(0, 5).toLowerCase();
-                    let str2 = parsedTransactions[i+1].merchant.substring(0, 5).toLowerCase();
-                    if (str1 === str2) {
+                    let str2 = parsedTransactions[i + 1].merchant.substring(0, 5).toLowerCase();
+                    if (str1 === str2 && parsedTransactions[i].accountType === parsedTransactions[i + 1].accountType) {
                         parsedTransactions[i].isDuplicate = true;
-                        parsedTransactions[i+1].isDuplicate = true;
+                        parsedTransactions[i + 1].isDuplicate = true;
                     }
                 }
             }
-            
+
+            // Smart Transfer Matcher: Link opposing transactions across accounts within 3 days
+            let sortedByDate = [...parsedTransactions].sort((a, b) => new Date(a.date) - new Date(b.date));
+            let transferMatched = new Set();
+
+            for (let i = 0; i < sortedByDate.length; i++) {
+                let txA = sortedByDate[i];
+                if (transferMatched.has(txA.id)) continue;
+
+                for (let j = 0; j < sortedByDate.length; j++) {
+                    if (i === j) continue;
+                    let txB = sortedByDate[j];
+                    if (transferMatched.has(txB.id)) continue;
+
+                    if (txA.accountType !== txB.accountType && Math.abs(txA.amount) === Math.abs(txB.amount) && txA.amount !== txB.amount) {
+                        let dateA = new Date(txA.date);
+                        let dateB = new Date(txB.date);
+                        let diffDays = Math.abs((dateA - dateB) / (1000 * 60 * 60 * 24));
+
+                        if (diffDays <= 3) {
+                            txA.categoryId = 'catTransfer';
+                            txB.categoryId = 'catTransfer';
+                            transferMatched.add(txA.id);
+                            transferMatched.add(txB.id);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            rebuildConnectedAccounts();
+            renderUploadedFiles();
             sortTransactions();
             renderLedger();
         }
 
         // Load Google Charts
-        google.charts.load('current', {'packages':['sankey']});
+        google.charts.load('current', { 'packages': ['sankey', 'corechart'] });
+        google.charts.setOnLoadCallback(() => {
+            if (parsedTransactions.length > 0) renderLedger();
+        });
 
-        function extractTransactions(rawText) {
+        function renderVault() {
+            const vault = document.getElementById('accountsVault');
+            const container = document.getElementById('vaultCardsContainer');
+
+            if (connectedAccounts.length === 0) {
+                vault.classList.add('hidden');
+                return;
+            }
+
+            vault.classList.remove('hidden');
+            container.innerHTML = connectedAccounts.map(acc => `
+                <div class="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 flex flex-col gap-2 relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
+                    <div class="flex justify-between items-center pl-2">
+                        <span class="font-bold text-gray-800 dark:text-gray-100">${acc.name}</span>
+                        <span class="text-green-600 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded text-[10px] font-bold shadow-sm">✓ Connected</span>
+                    </div>
+                    <span class="text-xs text-gray-500 font-medium pl-2">${acc.type}</span>
+                    <span class="text-xs text-gray-400 mt-2 pl-2 border-t border-gray-200 dark:border-gray-700 pt-2">${acc.count} Transactions Sync'd</span>
+                </div>
+            `).join('');
+        }
+
+        function parseCSVRow(str) {
+            let result = [];
+            let inQuotes = false;
+            let current = "";
+            for (let i = 0; i < str.length; i++) {
+                let char = str[i];
+                if (char === '"' && str[i + 1] === '"') {
+                    current += '"';
+                    i++;
+                } else if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                    result.push(current);
+                    current = "";
+                } else {
+                    current += char;
+                }
+            }
+            result.push(current);
+            return result;
+        }
+
+        function extractFromCSV(rawText, fileName) {
+            let accountType = 'Checking';
+            let lowerFile = fileName.toLowerCase();
+            if (lowerFile.includes('credit')) accountType = 'Credit';
+            else if (lowerFile.includes('savings')) accountType = 'Savings';
+
+            let institutionDomain = null;
+            let headerSearch = (fileName + " " + rawText.substring(0, 500)).toLowerCase();
+            if (headerSearch.includes('chase')) institutionDomain = 'chase.com';
+            else if (headerSearch.includes('bank of america') || headerSearch.includes('bofa')) institutionDomain = 'bankofamerica.com';
+            else if (headerSearch.includes('robinhood')) institutionDomain = 'robinhood.com';
+            else if (headerSearch.includes('amex') || headerSearch.includes('american express')) institutionDomain = 'americanexpress.com';
+            else if (headerSearch.includes('discover')) institutionDomain = 'discover.com';
+            else if (headerSearch.includes('capital one')) institutionDomain = 'capitalone.com';
+            else if (headerSearch.includes('wells fargo')) institutionDomain = 'wellsfargo.com';
+            else if (headerSearch.includes('citi')) institutionDomain = 'citi.com';
+            else if (headerSearch.includes('apple') || headerSearch.includes('cardholder')) institutionDomain = 'apple.com';
+
+            let lines = rawText.split('\n');
+            let parsedCount = 0;
+            let headers = [];
+            let dateIdx = 0, merchantIdx = 1, amountIdx = 2, typeIdx = -1;
+            let isAppleCard = false;
+
+            if (lines.length > 0) {
+                headers = parseCSVRow(lines[0].trim()).map(h => h.toLowerCase().trim());
+                if (headers.includes('date')) dateIdx = headers.indexOf('date');
+
+                if (headers.includes('merchant')) merchantIdx = headers.indexOf('merchant');
+                else if (headers.includes('description')) merchantIdx = headers.indexOf('description');
+                else if (headers.includes('name')) merchantIdx = headers.indexOf('name');
+
+                if (headers.includes('amount')) amountIdx = headers.indexOf('amount');
+                if (headers.includes('type')) typeIdx = headers.indexOf('type');
+
+                if (headers.includes('cardholder') && headers.includes('merchant')) {
+                    isAppleCard = true;
+                    if (accountType === 'Checking') accountType = 'Credit'; // Apple card is credit
+                }
+            }
+
+            lines.forEach((line, index) => {
+                if (index === 0 || !line.trim()) return;
+                let parts = parseCSVRow(line.trim());
+                if (parts.length > Math.max(dateIdx, merchantIdx, amountIdx)) {
+                    let rawDate = parts[dateIdx].trim();
+                    let dateObj = new Date(rawDate);
+                    if (isNaN(dateObj.getTime())) return;
+
+                    let mm = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+                    let dd = dateObj.getDate().toString().padStart(2, '0');
+                    let dateStr = `${mm}/${dd}/${dateObj.getFullYear()}`;
+
+                    let merchant = parts[merchantIdx].trim().replace(/\s+/g, ' ');
+                    let amtStr = parts[amountIdx].trim().replace(/[$,]/g, '');
+                    let amount = parseFloat(amtStr);
+
+                    if (isNaN(amount)) return;
+
+                    let typeStr = typeIdx !== -1 ? parts[typeIdx].toLowerCase() : '';
+
+                    if (isAppleCard) {
+                        amount = -amount;
+                    } else if (typeStr === 'debit') {
+                        amount = -Math.abs(amount);
+                    } else if (typeStr === 'credit') {
+                        amount = Math.abs(amount);
+                    }
+
+                    let lowerM = merchant.toLowerCase();
+                    if (lowerM.includes('statement balance') || lowerM.includes('available credit') || lowerM.includes('available balance') || lowerM.includes('new balance') || lowerM.includes('total balance') || lowerM.includes('current balance')) {
+                        return;
+                    }
+
+                    let finalCat = autoCategorizeExpense(merchant);
+                    if (amount > 0) {
+                        if (finalCat !== 'catDebt' && finalCat !== 'catTransfer' && (!finalCat || !finalCat.startsWith('income'))) {
+                            finalCat = 'income';
+                        }
+                    } else {
+                        if (finalCat && finalCat.startsWith('income')) {
+                            finalCat = 'catMisc'; // Fallback if rule predicted income but it's an expense
+                        }
+                    }
+
+                    rawTransactions.push({
+                        id: 'tx_' + Date.now() + Math.random().toString(16).slice(2),
+                        date: dateStr,
+                        merchant: merchant,
+                        amount: amount,
+                        categoryId: finalCat,
+                        accountType: accountType,
+                        sourceFile: fileName,
+                        institutionDomain: institutionDomain,
+                        isDuplicate: false,
+                        isSelected: false,
+                        deleted: false
+                    });
+                    parsedCount++;
+                }
+            });
+        }
+
+        /**
+         * Parses transactions from an OFX or QFX file format.
+         * 
+         * @param {string} rawText The raw text output extracted from the OFX/QFX file.
+         * @param {string} fileName The name of the uploaded file, used for account classification.
+         */
+        function extractFromOFX(rawText, fileName) {
+            let accountName = fileName.replace(/\.(ofx|qfx)$/i, '').substring(0, 25);
+            let accountType = 'Checking';
+            let lowerFile = fileName.toLowerCase();
+            if (rawText.includes('<CREDITCARDMSGSRSV1>') || lowerFile.includes('credit')) accountType = 'Credit';
+            else if (lowerFile.includes('savings')) accountType = 'Savings';
+
+            let txBlocks = rawText.split(/<STMTTRN>/i);
+            let parsedCount = 0;
+
+            txBlocks.forEach((block, index) => {
+                if (index === 0) return;
+
+                let dateMatch = block.match(/<DTPOSTED>(\d{8})/i);
+                let amtMatch = block.match(/<TRNAMT>([-\d.]+)/i);
+                let nameMatch = block.match(/<NAME>([^<]+)/i);
+
+                if (dateMatch && amtMatch && nameMatch) {
+                    let rawDate = dateMatch[1];
+                    let dateStr = `${rawDate.substring(4, 6)}/${rawDate.substring(6, 8)}/${rawDate.substring(0, 4)}`;
+                    let amount = parseFloat(amtMatch[1]);
+                    let merchant = nameMatch[1].trim().replace(/\s+/g, ' ');
+
+                    let finalCat = autoCategorizeExpense(merchant);
+                    if (amount > 0) {
+                        if (finalCat !== 'catDebt' && finalCat !== 'catTransfer' && (!finalCat || !finalCat.startsWith('income'))) {
+                            finalCat = 'income';
+                        }
+                    } else {
+                        if (finalCat && finalCat.startsWith('income')) {
+                            finalCat = 'catMisc';
+                        }
+                    }
+
+                    let institutionDomain = null;
+                    let headerSearch = (fileName + " " + rawText.substring(0, 500)).toLowerCase();
+                    if (headerSearch.includes('chase')) institutionDomain = 'chase.com';
+                    else if (headerSearch.includes('bank of america') || headerSearch.includes('bofa')) institutionDomain = 'bankofamerica.com';
+                    else if (headerSearch.includes('robinhood')) institutionDomain = 'robinhood.com';
+                    else if (headerSearch.includes('amex') || headerSearch.includes('american express')) institutionDomain = 'americanexpress.com';
+                    else if (headerSearch.includes('discover')) institutionDomain = 'discover.com';
+                    else if (headerSearch.includes('capital one')) institutionDomain = 'capitalone.com';
+                    else if (headerSearch.includes('wells fargo')) institutionDomain = 'wellsfargo.com';
+                    else if (headerSearch.includes('citi')) institutionDomain = 'citi.com';
+
+                    rawTransactions.push({
+                        id: Math.random().toString(36).substr(2, 9),
+                        date: dateStr,
+                        merchant: merchant,
+                        amount: amount,
+                        categoryId: finalCat,
+                        accountType: accountType,
+                        sourceFile: fileName,
+                        institutionDomain: institutionDomain,
+                        isDuplicate: false,
+                        isSelected: false,
+                        deleted: false
+                    });
+                    parsedCount++;
+                }
+            });
+
+        }
+
+        /**
+         * Parses raw text from uploaded statement files to extract transactions.
+         * Determines account type, mathematically verifies inflow/outflow, and appends to rawTransactions.
+         * 
+         * @param {string} rawText The raw text output extracted from the PDF or text file.
+         */
+        function extractTransactions(rawText, fileName = "") {
             const lines = rawText.split('\n');
-            
+
             // Amount Extraction Regex: Captures standard floats and trailing minus signs
-            const amtRegex = /(?:-?\$?\d{1,3}(?:,\d{3})*\.\d{2}-?)/g; 
-            
+            const amtRegex = /(?:-?\$?\d{1,3}(?:,\d{3})*\.\d{2}-?)/g;
+
             // Date Extraction Regex: Captures alphanumeric date formats (e.g., "Feb 17", "12/10")
-            const dateRegex = /(?:^|[^\w])((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2}(?:,?\s*\d{2,4})?|\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*(?:\s+\d{2,4})?|\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)(?:[^\w]|$)/i; 
-            
+            const dateRegex = /(?:^|[^\w])((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2}(?:,?\s*\d{2,4})?|\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*(?:\s+\d{2,4})?|\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)(?:[^\w]|$)/i;
+
             let lastBalance = null;
             let mathVerificationFailedCount = 0;
-            
-            // --- YEAR INFERENCE ENGINE ---
-            // Header Scanner: Extracts 4-digit years from the document header
+
             let headerText = rawText.substring(0, 1500);
+
+            let accountType = 'Checking';
+            if (/credit card|credit statement|available credit|visa|mastercard|amex|discover|platinum/i.test(headerText) || /credit/i.test(fileName)) {
+                accountType = 'Credit';
+            } else if (/savings/i.test(headerText) || /savings/i.test(fileName)) {
+                accountType = 'Savings';
+            }
+
             let yearMatches = [...headerText.matchAll(/\b(20[1-3]\d)\b/g)].map(m => parseInt(m[1]));
-            let uniqueYears = [...new Set(yearMatches)].sort((a,b) => a-b);
-            
-            // Timeline Bounds: Determines primary and secondary years for statement overlap (e.g., Dec-Jan)
+            let uniqueYears = [...new Set(yearMatches)].sort((a, b) => a - b);
+
             let primaryYear = uniqueYears.length > 0 ? uniqueYears[0] : new Date().getFullYear();
             let secondaryYear = uniqueYears.length > 1 ? uniqueYears[uniqueYears.length - 1] : primaryYear;
 
@@ -659,10 +1231,10 @@
             function normalizeDate(rawDate) {
                 let month = 1, day = 1;
                 let monthStrMatch = rawDate.match(/[a-zA-Z]+/);
-                
+
                 if (monthStrMatch) {
-                    let m = monthStrMatch[0].toLowerCase().substring(0,3);
-                    let monthMap = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+                    let m = monthStrMatch[0].toLowerCase().substring(0, 3);
+                    let monthMap = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
                     month = monthMap[m] || 1;
                     let dayMatch = rawDate.match(/\d{1,2}/);
                     day = dayMatch ? parseInt(dayMatch[0], 10) : 1;
@@ -677,41 +1249,45 @@
                 if (primaryYear !== secondaryYear) {
                     finalYear = (month >= 10) ? primaryYear : secondaryYear;
                 }
-                
+
                 let mm = month.toString().padStart(2, '0');
                 let dd = day.toString().padStart(2, '0');
                 return `${mm}/${dd}/${finalYear}`;
             }
-            
+
             // Stateful Fence Keywords: Identifies tables and ignores summary boilerplate
-            let isInsideTransactionTable = true; 
+            let isInsideTransactionTable = true;
             const stopKeywords = ['ending balance', 'in case of errors', 'total fees for this period', 'totals', 'summary of your account', 'total qualifying', 'interest paid ytd'];
             const startKeywords = ['beginning balance', 'opening balance', 'transaction detail', 'payments and other credits', 'purchase', 'account activity', 'account transactions', 'deposits and other credits', 'withdrawals and other debits', 'checks paid', 'activity for', 'deposits | credits', 'deposits i credits', 'deposits / credits', 'other withdrawals', 'your transaction details'];
 
             lines.forEach(line => {
                 let text = line.trim();
                 let lowerText = text.toLowerCase();
-                let normalizedText = lowerText.replace(/\s+/g, ' '); 
+                let normalizedText = lowerText.replace(/\s+/g, ' ');
                 if (!text) return;
 
                 if (stopKeywords.some(kw => normalizedText.includes(kw))) isInsideTransactionTable = false;
                 if (startKeywords.some(kw => normalizedText.includes(kw))) isInsideTransactionTable = true;
-                
-                if (!isInsideTransactionTable) return; 
+
+                if (!isInsideTransactionTable) return;
 
                 text = text.replace(/\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g, '').replace(/\b\d{10,}\b/g, '');
 
                 let amountsMatch = text.match(amtRegex);
                 let dateMatch = text.match(dateRegex);
-                
+
                 if (!amountsMatch && !dateMatch) return;
-                
+
                 // Absolute Formatting: Strips negative signs for uniform mathematical processing
                 let parsedAmounts = amountsMatch ? amountsMatch.map(a => parseFloat(a.replace(/[$,\-]/g, ''))) : [];
 
                 if (normalizedText.includes('beginning balance') || normalizedText.includes('opening balance') || normalizedText.includes('previous balance')) {
                     if (parsedAmounts.length > 0) lastBalance = parsedAmounts[parsedAmounts.length - 1];
-                    return; 
+                    return;
+                }
+
+                if (normalizedText.includes('statement balance') || normalizedText.includes('available credit') || normalizedText.includes('available balance') || normalizedText.includes('new balance') || normalizedText.includes('total balance') || normalizedText.includes('current balance')) {
+                    return;
                 }
 
                 let dateStr = "";
@@ -719,30 +1295,32 @@
                     // Date Assignment: Passes raw regex match through the normalizer
                     dateStr = normalizeDate(dateMatch[1].trim());
                 }
-                
+
                 let merchant = text;
                 if (amountsMatch) amountsMatch.forEach(amt => merchant = merchant.replace(amt, ''));
-                merchant = merchant.replace(dateRegex, '').replace(/[^a-zA-Z0-9\s\*\#]/g, '').trim(); 
-                
+                merchant = merchant.replace(dateRegex, '').replace(/[^a-zA-Z0-9\s\*\#]/g, '').replace(/\s+/g, ' ').trim();
+
                 // Data Validation Gate: Requires valid Date, Merchant string, and Amount
                 if (merchant.length > 2 && parsedAmounts.length > 0 && dateStr) {
-                    
+
                     let txAmount = parsedAmounts.length > 0 ? parsedAmounts[0] : 0.00;
                     let isIncome = null;
                     let isVerified = false;
-                    
+
                     if (lastBalance !== null && parsedAmounts.length >= 2) {
                         for (let i = 0; i < parsedAmounts.length; i++) {
                             for (let j = 0; j < parsedAmounts.length; j++) {
                                 if (i === j) continue;
                                 let tAmt = parsedAmounts[i];
                                 let rBal = parsedAmounts[j];
-                                
+
                                 if (Math.abs((lastBalance + tAmt) - rBal) < 0.05) {
-                                    isIncome = true; isVerified = true; txAmount = tAmt; lastBalance = rBal; break;
+                                    isIncome = accountType === 'Credit' ? false : true;
+                                    isVerified = true; txAmount = tAmt; lastBalance = rBal; break;
                                 }
                                 if (Math.abs((lastBalance - tAmt) - rBal) < 0.05) {
-                                    isIncome = false; isVerified = true; txAmount = tAmt; lastBalance = rBal; break;
+                                    isIncome = accountType === 'Credit' ? true : false;
+                                    isVerified = true; txAmount = tAmt; lastBalance = rBal; break;
                                 }
                             }
                             if (isVerified) break;
@@ -752,19 +1330,19 @@
                     if (!isVerified) {
                         mathVerificationFailedCount++;
                         isIncome = null;
-                        
+
                         if (parsedAmounts.length === 1) {
                             txAmount = parsedAmounts[0];
                         } else if (parsedAmounts.length > 1) {
                             let sortedByAbs = [...parsedAmounts].sort((a, b) => Math.abs(a) - Math.abs(b));
-                            txAmount = sortedByAbs[0]; 
+                            txAmount = sortedByAbs[0];
                         }
-                        lastBalance = null; 
+                        lastBalance = null;
                     }
 
                     let ruleCat = getCustomRuleCategory(merchant);
                     let finalCat = 'unsorted';
-                    let finalAmt = Math.abs(txAmount); 
+                    let finalAmt = Math.abs(txAmount);
 
                     let explicitNegative = false;
                     if (amountsMatch) {
@@ -774,13 +1352,27 @@
 
                     let isOutflow = false;
                     let isInflow = false;
-                    
-                    if (isIncome === true) isInflow = true;
-                    else if (isIncome === false) isOutflow = true;
-                    else if (explicitNegative) isOutflow = true; 
+
+                    if (isIncome === true) {
+                        isInflow = true;
+                    } else if (isIncome === false) {
+                        isOutflow = true;
+                    } else if (explicitNegative) {
+                        if (accountType === 'Credit') isInflow = true;
+                        else isOutflow = true;
+                    } else {
+                        if (accountType === 'Credit') {
+                            if (merchant.toLowerCase().includes('payment')) isInflow = true;
+                            else isOutflow = true;
+                        }
+                    }
 
                     if (isInflow) {
-                        finalCat = (ruleCat && ruleCat.startsWith('income')) ? ruleCat : 'income';
+                        if (ruleCat === 'catDebt' || ruleCat === 'catTransfer') {
+                            finalCat = ruleCat;
+                        } else {
+                            finalCat = (ruleCat && ruleCat.startsWith('income')) ? ruleCat : 'income';
+                        }
                     } else if (isOutflow) {
                         finalCat = (ruleCat && !ruleCat.startsWith('income')) ? ruleCat : autoCategorizeExpense(merchant);
                         finalAmt = -Math.abs(txAmount);
@@ -790,9 +1382,20 @@
                             finalAmt = ruleCat.startsWith('income') ? Math.abs(txAmount) : -Math.abs(txAmount);
                         } else {
                             finalCat = 'unsorted';
-                            finalAmt = Math.abs(txAmount); 
+                            finalAmt = Math.abs(txAmount);
                         }
                     }
+
+                    let institutionDomain = null;
+                    let headerSearch = (fileName + " " + headerText).toLowerCase();
+                    if (headerSearch.includes('chase')) institutionDomain = 'chase.com';
+                    else if (headerSearch.includes('bank of america') || headerSearch.includes('bofa')) institutionDomain = 'bankofamerica.com';
+                    else if (headerSearch.includes('robinhood')) institutionDomain = 'robinhood.com';
+                    else if (headerSearch.includes('amex') || headerSearch.includes('american express')) institutionDomain = 'americanexpress.com';
+                    else if (headerSearch.includes('discover')) institutionDomain = 'discover.com';
+                    else if (headerSearch.includes('capital one')) institutionDomain = 'capitalone.com';
+                    else if (headerSearch.includes('wells fargo')) institutionDomain = 'wellsfargo.com';
+                    else if (headerSearch.includes('citi')) institutionDomain = 'citi.com';
 
                     rawTransactions.push({
                         id: 'tx_' + Date.now() + Math.random().toString(16).slice(2),
@@ -800,6 +1403,9 @@
                         merchant: merchant || "Unknown Merchant",
                         amount: finalAmt,
                         categoryId: finalCat,
+                        accountType: accountType,
+                        sourceFile: fileName,
+                        institutionDomain: institutionDomain,
                         isDuplicate: false,
                         deleted: false,
                         isSelected: false
@@ -839,16 +1445,25 @@
         function applySelectionToUI(id, state) {
             let tx = parsedTransactions.find(t => t.id === id);
             if (tx) tx.isSelected = state;
-            
+
             let chk = document.getElementById('chk_' + id);
             if (chk) chk.checked = state;
-            
+
             let row = document.getElementById('row_' + id);
             if (row) {
                 if (state) row.classList.add('bg-blue-50', 'dark:bg-blue-900/20');
                 else row.classList.remove('bg-blue-50', 'dark:bg-blue-900/20');
             }
             updateBulkActionUI();
+        }
+
+        function toggleSelectAll(isChecked, isUnsorted) {
+            let targetArray = isUnsorted
+                ? getFilteredArray(parsedTransactions.filter(t => !t.deleted && t.categoryId === 'unsorted'))
+                : getFilteredArray(parsedTransactions.filter(t => !t.deleted && t.categoryId !== 'unsorted'));
+
+            targetArray.forEach(t => t.isSelected = isChecked);
+            renderLedger();
         }
 
         // --- ROW HANDLERS ---
@@ -883,25 +1498,49 @@
             renderLedger();
         }
 
+        let currentLedgerTab = 'All'; // 'All', 'Checking', 'Credit'
+
+        function setLedgerTab(tab) {
+            currentLedgerTab = tab;
+
+            // Update Tab UI
+            ['All', 'Checking', 'Credit'].forEach(t => {
+                let btn = document.getElementById('tab' + t);
+                if (!btn) return;
+                if (t === tab) {
+                    btn.className = "px-4 py-1.5 text-sm font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 transition-colors " + (t === 'Checking' ? 'border-l border-r border-gray-300 dark:border-gray-600' : '');
+                } else {
+                    btn.className = "px-4 py-1.5 text-sm font-semibold hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 transition-colors " + (t === 'Checking' ? 'border-l border-r border-gray-300 dark:border-gray-600' : '');
+                }
+            });
+            renderLedger();
+        }
+
         function renderLedger() {
             const mainWrapper = document.getElementById('mainLedgerWrapper');
             const unsortedWrapper = document.getElementById('unsortedLedgerWrapper');
             const unsortedBox = document.getElementById('unsortedBox');
-            const syncBtn = document.getElementById('syncBtn');
-            
+
             let rawActiveTx = parsedTransactions.filter(t => !t.deleted && t.categoryId !== 'unsorted');
             let rawUnsortedTx = parsedTransactions.filter(t => !t.deleted && t.categoryId === 'unsorted');
-            
+
             let activeTx = getFilteredArray(rawActiveTx);
             let unsortedTx = getFilteredArray(rawUnsortedTx);
 
-            if (activeTx.length === 0) {
-                let msg = rawActiveTx.length > 0 ? "No transactions match your current filters." : "No sorted transactions.";
+            let displayTx = activeTx;
+            if (currentLedgerTab === 'Checking') {
+                displayTx = activeTx.filter(t => t.accountType === 'Checking' || t.accountType === 'Bank' || t.accountType === 'Savings');
+            } else if (currentLedgerTab === 'Credit') {
+                displayTx = activeTx.filter(t => t.accountType === 'Credit' || t.accountType === 'Credit Card');
+            }
+
+            updateSummary(displayTx); // Global summary should always reflect all filtered active transactions
+
+            if (displayTx.length === 0) {
+                let msg = activeTx.length > 0 ? `No ${currentLedgerTab.toLowerCase()} transactions match your current filters.` : "No sorted transactions.";
                 mainWrapper.innerHTML = `<p class="py-8 text-center text-gray-500 italic border-t dark:border-gray-700">${msg}</p>`;
-                syncBtn.classList.add('hidden');
             } else {
-                syncBtn.classList.remove('hidden');
-                mainWrapper.innerHTML = generateTableHTML(activeTx, false);
+                mainWrapper.innerHTML = generateTableHTML(displayTx, false);
             }
 
             if (unsortedTx.length === 0) {
@@ -910,61 +1549,94 @@
                 unsortedBox.classList.remove('hidden');
                 unsortedWrapper.innerHTML = generateTableHTML(unsortedTx, true);
             }
-            
-            updateSummary(activeTx);
+
             updateBulkActionUI();
+            saveProgress();
+        }
+
+        function escapeHTML(str) {
+            if (typeof str !== 'string') str = String(str || '');
+            return str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
         }
 
         function generateTableHTML(txArray, isUnsorted) {
-            let dateIcon = dateSortAscending ? '▲' : '▼';
-            
+            let dateIcon = sortColumn === 'date' ? (dateSortAscending ? '▲' : '▼') : ' ';
+            let merchantIcon = sortColumn === 'merchant' ? (merchantSortAscending ? '▲' : '▼') : ' ';
+            let amountIcon = sortColumn === 'amount' ? (amountSortAscending ? '▲' : '▼') : '▼';
+            let allSelected = txArray.length > 0 && txArray.every(t => t.isSelected);
+
             let html = `
                 <table class="w-full text-left border-collapse select-none">
                     <thead class="sticky top-0 bg-white dark:bg-darkCard z-20 shadow-sm">
                         <tr class="text-xs text-gray-400 uppercase border-b border-gray-200 dark:border-gray-700">
-                            <th class="py-2 px-2 w-8"></th>
+                            <th class="py-2 px-2 w-8 no-export text-center">
+                                <input type="checkbox" onclick="toggleSelectAll(this.checked, ${isUnsorted})" class="cursor-pointer" ${allSelected ? 'checked' : ''}>
+                            </th>
                             <th class="py-2 px-2 whitespace-nowrap">
                                 <span class="cursor-pointer hover:text-blue-500 transition-colors" onclick="toggleDateSort()" title="Sort Dates">Date <span class="text-[10px] inline-block w-2">${dateIcon}</span></span>
-                                <span class="cursor-pointer ml-1 text-gray-300 hover:text-blue-500 transition-colors text-[11px]" onclick="openFilterModal('date')" title="Filter by Date">🔍</span>
+                                <span class="cursor-pointer ml-1 text-gray-300 hover:text-blue-500 transition-colors text-[11px] no-export" onclick="openFilterModal('date')" title="Filter by Date">🔍</span>
                             </th>
-                            <th class="py-2 px-2">Merchant</th>
-                            <th class="py-2 px-2 text-right cursor-pointer hover:text-blue-500 transition-colors" onclick="openFilterModal('amount')">Amount <span class="text-[10px]">▼</span></th>
+                            <th class="py-2 px-2">
+                                <span class="cursor-pointer hover:text-blue-500 transition-colors" onclick="toggleMerchantSort()" title="Sort Merchants">Merchant <span class="text-[10px] inline-block w-2">${merchantIcon}</span></span>
+                            </th>
+                            <th class="py-2 px-2 text-right cursor-pointer hover:text-blue-500 transition-colors" onclick="openFilterModal('amount')">Amount <span class="text-[10px]">${amountIcon}</span></th>
                             <th class="py-2 px-2 cursor-pointer hover:text-blue-500 transition-colors" onclick="openFilterModal('category')">Category <span class="text-[10px]">▼</span></th>
-                            <th class="py-2 px-2 text-center">Action</th>
+                            <th class="py-2 px-2 text-center no-export">Action</th>
                         </tr>
                     </thead>
                     <tbody class="text-sm">
             `;
-            
+
             txArray.forEach(tx => {
                 let rowClass = "border-b border-gray-100 dark:border-gray-800 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50";
                 if (tx.isDuplicate) rowClass += " bg-yellow-50 dark:bg-yellow-900/20";
                 if (tx.isSelected) rowClass += " bg-blue-50 dark:bg-blue-900/20";
-                
+
                 let optionsHtml = `<option value="unsorted" disabled ${tx.categoryId === 'unsorted' ? 'selected' : ''}>⚠️ Select Category...</option>`;
                 optionsHtml += `<option value="income" ${tx.categoryId === 'income' ? 'selected' : ''}>💵 + Inflow (Income)</option>`;
                 optionsHtml += `<option value="income_transfer" ${tx.categoryId === 'income_transfer' ? 'selected' : ''}>🔄 + Inflow (Transfer)</option>`;
                 optionsHtml += `<option value="income_p2p" ${tx.categoryId === 'income_p2p' ? 'selected' : ''}>💸 + Inflow (Peer-to-Peer)</option>`;
                 optionsHtml += `<option disabled>──────────</option>`;
                 categories.forEach(c => {
-                    optionsHtml += `<option value="${c.id}" ${tx.categoryId === c.id ? 'selected' : ''}>${c.emoji} - Outflow (${c.label})</option>`;
+                    let typeLabel = c.id === 'catTransfer' ? 'Transfer' : 'Outflow';
+                    optionsHtml += `<option value="${c.id}" ${tx.categoryId === c.id ? 'selected' : ''}>${c.emoji} - ${typeLabel} (${c.label})</option>`;
                 });
 
                 let amtColor = tx.amount > 0 ? "text-green-600 font-bold" : "text-gray-900 dark:text-gray-100";
                 let sign = (tx.amount > 0 && tx.categoryId !== 'unsorted') ? '+' : '';
 
+                let safeMerchant = escapeHTML(tx.merchant);
+                let safeDate = escapeHTML(tx.date);
+                let safeSourceFile = escapeHTML(tx.sourceFile || 'Unknown');
+                let safeAccountType = escapeHTML(tx.accountType || 'Bank');
+
+                let iconHtml = tx.institutionDomain
+                    ? `<img src="https://logo.clearbit.com/${tx.institutionDomain}?size=16" class="w-4 h-4 rounded-full mr-1 inline" onerror="this.style.display='none'">`
+                    : '';
+
                 html += `
                     <tr id="row_${tx.id}" class="${rowClass}">
-                        <td class="py-2 px-2 text-center cursor-crosshair" 
+                        <td class="py-2 px-2 text-center cursor-crosshair no-export" 
                             onmousedown="startDragSelect('${tx.id}', event)" 
                             onmouseenter="dragEnterSelect('${tx.id}', event)">
                             <input type="checkbox" id="chk_${tx.id}" ${tx.isSelected ? 'checked' : ''} class="cursor-pointer pointer-events-none">
                         </td>
                         <td class="py-2 px-2">
-                            <input type="text" value="${tx.date}" onchange="updateDate('${tx.id}', this.value)" class="w-16 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-blue-500 outline-none text-gray-500 text-xs">
+                            <input type="text" value="${safeDate}" onchange="updateDate('${tx.id}', this.value)" class="w-16 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-blue-500 outline-none text-gray-500 text-xs">
                         </td>
-                        <td class="py-2 px-2">
-                            <input type="text" value="${tx.merchant}" onchange="updateMerchant('${tx.id}', this.value)" class="w-full min-w-[200px] max-w-md bg-transparent border-b border-transparent hover:border-gray-300 focus:border-blue-500 outline-none font-medium truncate text-gray-900 dark:text-gray-100 text-sm">
+                        <td class="py-2 px-2" title="Source: ${safeSourceFile}">
+                            <div class="flex flex-col">
+                                <input type="text" value="${safeMerchant}" onchange="updateMerchant('${tx.id}', this.value)" class="w-full min-w-[200px] max-w-md bg-transparent border-b border-transparent hover:border-gray-300 focus:border-blue-500 outline-none font-medium truncate text-gray-900 dark:text-gray-100 text-sm">
+                                <div class="text-[10px] text-gray-400 font-medium flex items-center mt-1">
+                                    ${iconHtml}
+                                    ${safeAccountType}
+                                </div>
+                            </div>
                         </td>
                         <td class="py-2 px-2 text-right ${amtColor}">
                             <div class="flex justify-end items-center">
@@ -979,7 +1651,7 @@
                                 ${optionsHtml}
                             </select>
                         </td>
-                        <td class="py-2 px-2 text-center">
+                        <td class="py-2 px-2 text-center no-export">
                             <button onclick="deleteRow('${tx.id}')" class="text-gray-400 hover:text-red-500 transition-colors" title="Remove row">✕</button>
                         </td>
                     </tr>
@@ -993,7 +1665,7 @@
             let tx = parsedTransactions.find(t => t.id === id);
             if (tx) {
                 tx.deleted = true;
-                tx.isSelected = false; 
+                tx.isSelected = false;
             }
             renderLedger();
         }
@@ -1004,7 +1676,7 @@
                 tx.categoryId = newCat;
                 if (newCat.startsWith('income')) tx.amount = Math.abs(tx.amount);
                 else tx.amount = -Math.abs(tx.amount);
-                
+
                 saveCustomRule(tx.merchant, newCat);
                 BayesEngine.train(tx.merchant, newCat);
             }
@@ -1023,12 +1695,12 @@
         function updateBulkActionUI() {
             const bulkBar = document.getElementById('bulkActions');
             const selectedCount = parsedTransactions.filter(t => !t.deleted && t.isSelected).length;
-            
+
             document.getElementById('selectedCount').innerText = selectedCount;
             if (selectedCount > 0) {
                 bulkBar.classList.remove('hidden');
                 const bulkSelect = document.getElementById('bulkCategorySelect');
-                
+
                 // Menu Population: Injects dynamic categories if only base options exist
                 if (bulkSelect.options.length <= 5) {
                     bulkSelect.innerHTML = `<option value="" disabled selected>⚠️ Set category...</option>
@@ -1038,8 +1710,9 @@
                                             <option disabled>──────────</option>`;
                     categories.forEach(c => {
                         let opt = document.createElement('option');
-                        opt.value = c.id; 
-                        opt.text = `${c.emoji} - Outflow (${c.label})`;
+                        opt.value = c.id;
+                        let typeLabel = c.id === 'catTransfer' ? 'Transfer' : 'Outflow';
+                        opt.text = `${c.emoji} - ${typeLabel} (${c.label})`;
                         bulkSelect.add(opt);
                     });
                 }
@@ -1053,24 +1726,27 @@
             const newCat = bulkSelect.value;
             if (!newCat) return;
 
-            parsedTransactions.forEach(tx => {
+            let visibleTx = getFilteredArray(parsedTransactions);
+
+            visibleTx.forEach(tx => {
                 if (!tx.deleted && tx.isSelected) {
                     tx.categoryId = newCat;
                     if (newCat.startsWith('income')) tx.amount = Math.abs(tx.amount);
                     else tx.amount = -Math.abs(tx.amount);
-                    tx.isSelected = false; 
-                    
+                    tx.isSelected = false;
+
                     saveCustomRule(tx.merchant, newCat);
                     // Bulk Training: Updates the AI model with newly assigned categories
                     BayesEngine.train(tx.merchant, newCat);
                 }
             });
-            bulkSelect.value = ""; 
+            bulkSelect.value = "";
             renderLedger();
         }
 
         function deleteSelected() {
-            parsedTransactions.forEach(tx => {
+            let visibleTx = getFilteredArray(parsedTransactions);
+            visibleTx.forEach(tx => {
                 if (!tx.deleted && tx.isSelected) {
                     tx.deleted = true;
                     tx.isSelected = false;
@@ -1082,19 +1758,22 @@
         function updateSummary(activeTx) {
             let inflow = 0; let outflow = 0;
             let knownDates = [];
-            
+
             activeTx.forEach(t => {
-                if (t.categoryId.startsWith('income')) inflow += Math.abs(t.amount);
-                else outflow += Math.abs(t.amount);
+                if (t.categoryId.startsWith('income')) {
+                    if (t.categoryId !== 'income_transfer') inflow += t.amount;
+                } else {
+                    if (t.categoryId !== 'catTransfer') outflow -= t.amount;
+                }
                 if (t.date && t.date.toLowerCase() !== 'unknown') knownDates.push(t.date);
             });
-            
-            document.getElementById('inflowUI').innerText = `$${inflow.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-            document.getElementById('outflowUI').innerText = `$${outflow.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-            
+
+            document.getElementById('inflowUI').innerText = `$${inflow.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            document.getElementById('outflowUI').innerText = `$${outflow.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
             let net = inflow - outflow;
             let netUI = document.getElementById('netVarianceUI');
-            netUI.innerText = net < 0 ? `-$${Math.abs(net).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : `$${net.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            netUI.innerText = net < 0 ? `-$${Math.abs(net).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `$${net.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
             netUI.className = net < 0 ? "text-xl font-black text-red-600" : "text-xl font-black text-green-600";
 
             let dateRangeStr = "No dates available";
@@ -1102,13 +1781,13 @@
                 knownDates.sort((a, b) => getComparableDate(a) - getComparableDate(b));
                 dateRangeStr = `${knownDates[0]} to ${knownDates[knownDates.length - 1]}`;
                 if (knownDates[0] === knownDates[knownDates.length - 1]) dateRangeStr = knownDates[0];
-                
+
                 let sumDate = document.getElementById('summaryDateRange');
                 if (sumDate) sumDate.innerText = `(${knownDates[0]} - ${knownDates[knownDates.length - 1]})`;
             }
             document.getElementById('dateRangeUI').innerText = `Date Range: ${dateRangeStr}`;
 
-            drawSankey(activeTx, inflow, outflow);
+            drawCharts(activeTx, inflow, outflow);
         }
 
         // --- SANKEY DIAGRAM RENDERING ---
@@ -1119,19 +1798,19 @@
             data.addColumn('string', 'From');
             data.addColumn('string', 'To');
             data.addColumn('number', 'Amount');
-            data.addColumn({type: 'string', role: 'tooltip', 'p': {'html': true}}); 
+            data.addColumn({ type: 'string', role: 'tooltip', 'p': { 'html': true } });
 
             let totalIncome = 0; let totalTransfer = 0; let totalP2PIn = 0;
             let categoriesSum = {};
 
             activeTx.forEach(t => {
-                if (t.categoryId === 'income') totalIncome += Math.abs(t.amount);
-                else if (t.categoryId === 'income_transfer') totalTransfer += Math.abs(t.amount);
-                else if (t.categoryId === 'income_p2p') totalP2PIn += Math.abs(t.amount);
-                else {
+                if (t.categoryId === 'income') totalIncome += t.amount;
+                else if (t.categoryId === 'income_transfer') totalTransfer += t.amount;
+                else if (t.categoryId === 'income_p2p') totalP2PIn += t.amount;
+                else if (t.categoryId !== 'catTransfer') {
                     let catObj = categories.find(c => c.id === t.categoryId);
                     let catLabel = catObj ? `${catObj.emoji} ${catObj.label}` : '📦 Misc.';
-                    categoriesSum[catLabel] = (categoriesSum[catLabel] || 0) + Math.abs(t.amount);
+                    categoriesSum[catLabel] = (categoriesSum[catLabel] || 0) - t.amount;
                 }
             });
 
@@ -1145,9 +1824,9 @@
             }
 
             const safeFloat = (val) => Math.round(val * 100) / 100;
-            const formatCash = (val) => '$' + safeFloat(val).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            const formatCash = (val) => '$' + safeFloat(val).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             let grandTotal = Math.max(totalInflow, totalOutflow);
-            
+
             const formatLabel = (name, val) => {
                 let pct = grandTotal > 0 ? ((val / grandTotal) * 100).toFixed(1) : 0;
                 return `${name}||${formatCash(val)} (${pct}%)`;
@@ -1155,9 +1834,9 @@
 
             const buildTooltip = (name, val) => {
                 // Delimiter Scrubbing: Removes internal tracking markers
-                let cleanName = name.replace(/\|\|.*/, ''); 
+                let cleanName = name.replace(/\|\|.*/, '');
                 let pct = grandTotal > 0 ? ((val / grandTotal) * 100).toFixed(1) : 0;
-                
+
                 // Dark Mode Override: Enforces high-contrast text inside the SVG tooltip
                 return `<div style="padding:10px; font-family:sans-serif; min-width:120px; color:#111827;">
                             <strong style="display:block; margin-bottom:4px;">${cleanName}</strong>
@@ -1169,34 +1848,65 @@
             let rightSideNodeCount = 0;
             let nodeTotal = formatLabel('🏦 Total Funds', grandTotal);
 
-            if (totalIncome > 0) rows.push([formatLabel('💵 Income', totalIncome), nodeTotal, safeFloat(totalIncome), buildTooltip('💵 Income', totalIncome)]);
-            if (totalTransfer > 0) rows.push([formatLabel('🔄 Transfers', totalTransfer), nodeTotal, safeFloat(totalTransfer), buildTooltip('🔄 Transfers', totalTransfer)]);
-            if (totalP2PIn > 0) rows.push([formatLabel('💸 Peer-to-Peer', totalP2PIn), nodeTotal, safeFloat(totalP2PIn), buildTooltip('💸 Peer-to-Peer (In)', totalP2PIn)]);
-            if (totalOutflow > totalInflow) rows.push([formatLabel('📉 Deficit', totalOutflow - totalInflow), nodeTotal, safeFloat(totalOutflow - totalInflow), buildTooltip('📉 Deficit', totalOutflow - totalInflow)]);
+            // Build visual nodes to decouple display thickness from actual values
+            let visualLeft = [];
+            let visualRight = [];
 
-            for (const [cat, amt] of Object.entries(categoriesSum)) {
-                if (amt > 0) {
-                    rows.push([nodeTotal, formatLabel(cat, amt), safeFloat(amt), buildTooltip(cat, amt)]);
-                    rightSideNodeCount++;
-                }
+            if (totalIncome > 0) visualLeft.push({ name: '💵 Income', real: totalIncome });
+            if (totalTransfer > 0) visualLeft.push({ name: '🔄 Transfers', real: totalTransfer });
+            if (totalP2PIn > 0) visualLeft.push({ name: '💸 Peer-to-Peer', real: totalP2PIn });
+            if (totalOutflow > totalInflow) visualLeft.push({ name: '📉 Deficit', real: totalOutflow - totalInflow });
+
+            let sortedCategories = Object.entries(categoriesSum).sort((a, b) => b[1] - a[1]);
+            for (const [cat, amt] of sortedCategories) {
+                if (amt > 0) visualRight.push({ name: cat, real: amt });
             }
-
             if (totalInflow > totalOutflow) {
-                rows.push([nodeTotal, formatLabel('🐷 Unspent Cash', totalInflow - totalOutflow), safeFloat(totalInflow - totalOutflow), buildTooltip('🐷 Unspent Cash', totalInflow - totalOutflow)]);
-                rightSideNodeCount++;
+                visualRight.push({ name: '🐷 Unspent Cash', real: totalInflow - totalOutflow });
             }
+
+            // Enforce minimum visual thickness (~4% of grand total ensures line is taller than the text)
+            let minDisplayAmt = grandTotal * 0.04;
+
+            let dispLeftSum = 0;
+            visualLeft.forEach(n => {
+                n.disp = Math.max(n.real, minDisplayAmt);
+                dispLeftSum += n.disp;
+            });
+
+            let dispRightSum = 0;
+            visualRight.forEach(n => {
+                n.disp = Math.max(n.real, minDisplayAmt);
+                dispRightSum += n.disp;
+            });
+
+            // Balance the sides so the 'Total Funds' node renders cleanly without jagged edges
+            if (dispLeftSum > dispRightSum && visualRight.length > 0) {
+                visualRight[0].disp += (dispLeftSum - dispRightSum);
+            } else if (dispRightSum > dispLeftSum && visualLeft.length > 0) {
+                visualLeft[0].disp += (dispRightSum - dispLeftSum);
+            }
+
+            visualLeft.forEach(n => {
+                rows.push([formatLabel(n.name, n.real), nodeTotal, safeFloat(n.disp), buildTooltip(n.name, n.real)]);
+            });
+            visualRight.forEach(n => {
+                rows.push([nodeTotal, formatLabel(n.name, n.real), safeFloat(n.disp), buildTooltip(n.name, n.real)]);
+            });
+
+            rightSideNodeCount = visualRight.length;
 
             data.addRows(rows);
-            
-            // Dynamic Height: Scales vertically based on node count, capping at 700px
-            let calculatedHeight = Math.min(Math.max(250, rightSideNodeCount * 55), 700); 
+
+            // Dynamic Height: Scales vertically based on node count, capping at 1000px
+            let calculatedHeight = Math.min(Math.max(300, rightSideNodeCount * 70), 1000);
             container.style.height = calculatedHeight + 'px';
-            
+
             let options = {
                 sankey: {
                     node: {
                         colors: ['#22C55E', '#3B82F6', '#F43F5E', '#A855F7', '#F59E0B', '#10B981', '#6366F1'],
-                        nodePadding: 24, 
+                        nodePadding: 45,
                         width: 15,
                         label: { fontName: 'sans-serif', fontSize: 13, color: document.documentElement.classList.contains('dark') ? '#F3F4F6' : '#111827' }
                     },
@@ -1205,7 +1915,7 @@
                 },
                 tooltip: { isHtml: true } // Tooltip Configuration: Enables custom HTML tooltips
             };
-            
+
             let chart = new google.visualization.Sankey(container);
 
             const applyDOMHack = () => {
@@ -1214,34 +1924,34 @@
                     let textEl = svgTexts[i];
                     if (textEl.textContent.includes('||')) {
                         let parts = textEl.textContent.split('||');
-                        let originalX = textEl.getAttribute('x'); 
-                        
-                        textEl.textContent = ''; 
-                        
+                        let originalX = textEl.getAttribute('x');
+
+                        textEl.textContent = '';
+
                         let tspan1 = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
                         tspan1.textContent = parts[0];
                         tspan1.setAttribute('x', originalX);
-                        tspan1.setAttribute('dy', '-0.3em'); 
-                        
+                        tspan1.setAttribute('dy', '-0.3em');
+
                         let tspan2 = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
                         tspan2.textContent = parts[1];
                         tspan2.setAttribute('x', originalX);
-                        tspan2.setAttribute('dy', '1.4em'); 
+                        tspan2.setAttribute('dy', '1.4em');
                         tspan2.setAttribute('font-size', '10px');
-                        tspan2.setAttribute('fill', document.documentElement.classList.contains('dark') ? '#9CA3AF' : '#6B7280'); 
-                        
+                        tspan2.setAttribute('fill', document.documentElement.classList.contains('dark') ? '#9CA3AF' : '#6B7280');
+
                         textEl.appendChild(tspan1);
                         textEl.appendChild(tspan2);
                     }
                 }
             };
 
-            google.visualization.events.addListener(chart, 'ready', function() {
-                applyDOMHack(); 
+            google.visualization.events.addListener(chart, 'ready', function () {
+                applyDOMHack();
                 const observer = new MutationObserver(() => {
-                    observer.disconnect(); 
-                    applyDOMHack();        
-                    observer.observe(container, { childList: true, subtree: true, characterData: true }); 
+                    observer.disconnect();
+                    applyDOMHack();
+                    observer.observe(container, { childList: true, subtree: true, characterData: true });
                 });
                 observer.observe(container, { childList: true, subtree: true, characterData: true });
             });
@@ -1249,28 +1959,183 @@
             chart.draw(data, options);
         }
 
-        function syncToBudget() {
-            // Outflow Isolation: Excludes all inflow categories from the budget sync payload
-            let activeTx = parsedTransactions.filter(t => !t.deleted && !t.categoryId.startsWith('income') && t.categoryId !== 'unsorted');
-            
-            let currentState = window.FinanceState ? window.FinanceState.load() : {};
-            if (!currentState.actuals) currentState.actuals = {};
-            
-            // Payload Normalization: Formats data using system IDs for Budget Planner compatibility
-            activeTx.forEach(t => {
-                if (!currentState.actuals[t.categoryId]) currentState.actuals[t.categoryId] = 0;
-                currentState.actuals[t.categoryId] += Math.abs(t.amount);
+        let currentChartTab = 'sankey';
+
+        function setChartTab(tab) {
+            currentChartTab = tab;
+            ['sankey', 'donut', 'trend'].forEach(t => {
+                let btn = document.getElementById('tabChart' + t.charAt(0).toUpperCase() + t.slice(1));
+                if (btn) {
+                    if (t === tab) {
+                        btn.className = "px-3 py-1 text-sm font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 transition-colors" + (t === 'donut' ? ' border-l border-r border-gray-300 dark:border-gray-600' : '');
+                    } else {
+                        btn.className = "px-3 py-1 text-sm font-semibold hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 transition-colors" + (t === 'donut' ? ' border-l border-r border-gray-300 dark:border-gray-600' : '');
+                    }
+                }
             });
-            
-            if (window.FinanceState) window.FinanceState.save(currentState);
-            
-            let btn = document.getElementById('syncBtn');
-            btn.innerText = "✓ Synced!";
-            btn.classList.replace('bg-purple-600', 'bg-green-600');
-            setTimeout(() => { window.location.href = "https://nonsenseian.github.io/budgetplanner/"; }, 1000);
+
+            document.getElementById('sankey_basic').classList.add('hidden');
+            document.getElementById('chartContainerDonut').classList.add('hidden');
+            document.getElementById('chartContainerTrend').classList.add('hidden');
+
+            if (tab === 'sankey') document.getElementById('sankey_basic').classList.remove('hidden');
+            if (tab === 'donut') document.getElementById('chartContainerDonut').classList.remove('hidden');
+            if (tab === 'trend') document.getElementById('chartContainerTrend').classList.remove('hidden');
+
+            // Force ledger render to trigger summary chart update
+            renderLedger();
         }
 
-        // --- CSV EXPORT ENGINE ---
+        function drawCharts(activeTx, totalInflow, totalOutflow) {
+            if (currentChartTab === 'sankey') drawSankey(activeTx, totalInflow, totalOutflow);
+            if (currentChartTab === 'donut') drawDonut(activeTx);
+            if (currentChartTab === 'trend') drawTrendline(activeTx);
+        }
+
+        let echartInstance = null;
+        
+        function drawDonut(activeTx) {
+            if (typeof echarts === 'undefined') return;
+            const container = document.getElementById('chartContainerDonut');
+            
+            let categoriesSum = {};
+            activeTx.forEach(t => {
+                if (t.amount < 0 && (!t.categoryId || !t.categoryId.startsWith('income'))) { // Only count outflows
+                    let catObj = categories.find(c => c.id === t.categoryId);
+                    let catLabel = catObj ? `${catObj.emoji} ${catObj.label}` : 'Misc.';
+                    categoriesSum[catLabel] = (categoriesSum[catLabel] || 0) + Math.abs(t.amount);
+                }
+            });
+
+            let chartData = [];
+            for (const [cat, amt] of Object.entries(categoriesSum).sort((a,b) => b[1] - a[1])) {
+                chartData.push({ value: amt, name: cat });
+            }
+
+            if (chartData.length === 0) {
+                container.innerHTML = '<p class="text-xs text-gray-500 text-center mt-10">No spend data to visualize.</p>';
+                return;
+            }
+
+            if (!echartInstance) {
+                echartInstance = echarts.init(container);
+                window.addEventListener('resize', () => {
+                    if (echartInstance) echartInstance.resize();
+                });
+            } else {
+                // Ensure it occupies space correctly if unhidden
+                echartInstance.resize();
+            }
+
+            let isDark = document.documentElement.classList.contains('dark');
+            let textColor = isDark ? '#F3F4F6' : '#111827';
+            
+            let option = {
+                color: ['#22C55E', '#3B82F6', '#F43F5E', '#A855F7', '#F59E0B', '#10B981', '#6366F1'],
+                tooltip: {
+                    trigger: 'item',
+                    formatter: function(params) {
+                        return `<div style="font-family:sans-serif;">
+                            <strong>${params.name}</strong><br/>
+                            Spend: $${params.value.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}<br/>
+                            Share: ${params.percent}%
+                        </div>`;
+                    }
+                },
+                series: [
+                    {
+                        name: 'Spend',
+                        type: 'pie',
+                        radius: ['45%', '70%'],
+                        center: ['50%', '50%'],
+                        hoverOffset: 15,
+                        minAngle: 10, // Ensure tiny slices are at least 10 degrees wide to be visible/hoverable
+                        itemStyle: {
+                            borderRadius: 6,
+                            borderColor: isDark ? '#1F2937' : '#ffffff',
+                            borderWidth: 2
+                        },
+                        label: {
+                            show: true,
+                            position: 'outside',
+                            color: textColor,
+                            fontSize: 14,
+                            fontWeight: 'bold',
+                            formatter: '{b}\n{d}%'
+                        },
+                        labelLine: {
+                            show: true,
+                            length: 20,
+                            length2: 30,
+                            smooth: true,
+                            lineStyle: {
+                                width: 2,
+                                color: textColor
+                            }
+                        },
+                        data: chartData
+                    }
+                ]
+            };
+            
+            echartInstance.setOption(option);
+        }
+
+        function drawTrendline(activeTx) {
+            if (typeof google === 'undefined' || !google.visualization || !google.visualization.ComboChart) return;
+            const container = document.getElementById('chartContainerTrend');
+            
+            let dataByMonth = {};
+            activeTx.forEach(t => {
+                let d = new Date(t.date);
+                if (isNaN(d)) return;
+                let monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                if (!dataByMonth[monthKey]) dataByMonth[monthKey] = { in: 0, out: 0 };
+                if (t.amount > 0) dataByMonth[monthKey].in += t.amount;
+                else dataByMonth[monthKey].out += Math.abs(t.amount);
+            });
+
+            let sortedMonths = Object.keys(dataByMonth).sort();
+            
+            if (sortedMonths.length === 0) {
+                container.innerHTML = '<p class="text-xs text-gray-500 text-center mt-10">No time-series data to visualize.</p>';
+                return;
+            }
+
+            let data = new google.visualization.DataTable();
+            data.addColumn('string', 'Month');
+            data.addColumn('number', 'Inflow');
+            data.addColumn('number', 'Outflow');
+            data.addColumn('number', 'Net');
+
+            sortedMonths.forEach(m => {
+                let inflow = dataByMonth[m].in;
+                let outflow = dataByMonth[m].out;
+                let net = inflow - outflow;
+                data.addRow([m, inflow, outflow, net]);
+            });
+
+            let chart = new google.visualization.ComboChart(container);
+            let isDark = document.documentElement.classList.contains('dark');
+            let textColor = isDark ? '#F3F4F6' : '#111827';
+            let options = {
+                seriesType: 'bars',
+                series: { 
+                    0: { color: '#22C55E' }, 
+                    1: { color: '#EF4444' },
+                    2: { type: 'line', color: '#3B82F6', lineWidth: 3 }
+                },
+                legend: { position: 'top', textStyle: { color: textColor } },
+                hAxis: { textStyle: { color: textColor } },
+                vAxis: { textStyle: { color: textColor }, format: 'currency' },
+                backgroundColor: 'transparent'
+            };
+            chart.draw(data, options);
+        }
+
+        /**
+         * Exports currently filtered and active transactions to a downloadable CSV file.
+         */
         function exportToCSV() {
             let rawActiveTx = parsedTransactions.filter(t => !t.deleted && t.categoryId !== 'unsorted');
             let activeTx = getFilteredArray(rawActiveTx);
@@ -1280,39 +2145,177 @@
                 return;
             }
 
-            let csvContent = "Date,Merchant,Amount,Category\n";
+            let csvContent = "Date,Merchant,Amount,Category,Account\n";
 
             activeTx.forEach(tx => {
-                // CSV Sanitization: Escapes internal quotes to prevent layout corruption
                 let safeMerchant = tx.merchant.replace(/"/g, '""');
-                
+
                 let catLabel = categories.find(c => c.id === tx.categoryId)?.label || 'Misc';
                 if (tx.categoryId === 'income') catLabel = 'Inflow (Income)';
                 if (tx.categoryId === 'income_transfer') catLabel = 'Inflow (Transfer)';
                 if (tx.categoryId === 'income_p2p') catLabel = 'Inflow (Peer-to-Peer)';
 
                 let amount = tx.amount.toFixed(2);
-                
-                csvContent += `"${tx.date}","${safeMerchant}",${amount},"${catLabel}"\n`;
+                let account = tx.accountType || 'Bank';
+
+                csvContent += `"${tx.date}","${safeMerchant}",${amount},"${catLabel}","${account}"\n`;
             });
 
             let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             let link = document.createElement("a");
-            
+
             if (link.download !== undefined) {
                 let url = URL.createObjectURL(blob);
                 link.setAttribute("href", url);
-                
+
                 let today = new Date().toISOString().split('T')[0];
                 link.setAttribute("download", `transaction_summary_${today}.csv`);
-                
+
                 link.style.visibility = 'hidden';
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
-                URL.revokeObjectURL(url); 
+                URL.revokeObjectURL(url);
             }
+        }
+
+        function handleExport(val) {
+            if (val === 'json') exportToJSON();
+            else if (val === 'csv') exportToCSV();
+            else if (val === 'pdf') exportToPDF();
+
+            // Reset the dropdown back to default state
+            document.getElementById('exportSelect').value = "";
+        }
+
+        /**
+         * Exports currently filtered and active transactions to a JSON file for the Budget Planner.
+         */
+        function exportToJSON() {
+            let rawActiveTx = parsedTransactions.filter(t => !t.deleted && t.categoryId !== 'unsorted');
+            let activeTx = getFilteredArray(rawActiveTx);
+
+            if (activeTx.length === 0) {
+                alert("No transactions available to export.");
+                return;
+            }
+
+            let exportData = activeTx.map(tx => {
+                let catLabel = categories.find(c => c.id === tx.categoryId)?.label || 'Misc';
+                if (tx.categoryId === 'income') catLabel = 'Inflow (Income)';
+                if (tx.categoryId === 'income_transfer') catLabel = 'Inflow (Transfer)';
+                if (tx.categoryId === 'income_p2p') catLabel = 'Inflow (Peer-to-Peer)';
+
+                return {
+                    date: tx.date,
+                    merchant: tx.merchant,
+                    amount: tx.amount.toFixed(2),
+                    category: catLabel,
+                    type: tx.categoryId.startsWith('income') ? 'Income' : 'Expense',
+                    account: tx.accountType || 'Bank'
+                };
+            });
+
+            let jsonString = JSON.stringify(exportData, null, 2);
+            let blob = new Blob([jsonString], { type: 'application/json;charset=utf-8;' });
+            let link = document.createElement("a");
+
+            if (link.download !== undefined) {
+                let url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+
+                let today = new Date().toISOString().split('T')[0];
+                link.setAttribute("download", `nonsenseian_transactions_${today}.json`);
+
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            }
+        }
+
+        function resetAIModel() {
+            if (confirm("Are you sure you want to clear your local AI training and custom rules? This will fix persistent miscategorization bugs caused by erroneous bulk editing.")) {
+                localStorage.removeItem('tx_ml_model');
+                localStorage.removeItem('tx_custom_rules');
+                BayesEngine.model = { catCounts: {}, wordCounts: {}, totalTx: 0, vocab: [] };
+                // Using alert allows the user to know it succeeded before reload
+                alert("AI Engine reset successfully! The page will now reload.");
+                location.reload();
+            }
+        }
+
+        /**
+         * Generates and downloads a PDF presentation of the current transaction summary and flow diagram.
+         */
+        function exportToPDF() {
+            let activeTx = parsedTransactions.filter(t => !t.deleted && t.categoryId !== 'unsorted');
+            if (activeTx.length === 0) {
+                alert("No transactions available to export.");
+                return;
+            }
+
+            document.body.classList.add('exporting');
+            let wasDark = document.documentElement.classList.contains('dark');
+            if (wasDark) document.documentElement.classList.remove('dark');
+
+            let mainLedger = document.getElementById('mainLedgerWrapper');
+            let unsortedLedger = document.getElementById('unsortedLedgerWrapper');
+            if (mainLedger) mainLedger.classList.add('export-full-height');
+            if (unsortedLedger) unsortedLedger.classList.add('export-full-height');
+
+            const element = document.getElementById('pdfExportContainer');
+
+            // SVG Hack for html2canvas to correctly render Sankey paths
+            let sankeyContainer = document.getElementById('sankey_basic');
+            let svgElement = sankeyContainer ? sankeyContainer.querySelector('svg') : null;
+            let imgElement = null;
+            if (svgElement) {
+                let xml = new XMLSerializer().serializeToString(svgElement);
+                let svg64 = btoa(unescape(encodeURIComponent(xml)));
+                imgElement = document.createElement('img');
+                imgElement.src = 'data:image/svg+xml;base64,' + svg64;
+                imgElement.style.width = '100%';
+                svgElement.style.display = 'none';
+                sankeyContainer.appendChild(imgElement);
+            }
+
+            let opt = {
+                margin: 0.5,
+                filename: `transaction_summary_${new Date().toISOString().split('T')[0]}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
+                pagebreak: { mode: ['css', 'legacy'] }
+            };
+
+            html2pdf().set(opt).from(element).save().then(() => {
+                if (svgElement) svgElement.style.display = '';
+                if (imgElement) imgElement.remove();
+                if (wasDark) document.documentElement.classList.add('dark');
+                document.body.classList.remove('exporting');
+                if (mainLedger) mainLedger.classList.remove('export-full-height');
+                if (unsortedLedger) unsortedLedger.classList.remove('export-full-height');
+            });
+        }
+
+        loadProgress();
+    </script>
+    <!-- Progressive Web App: Service Worker Registration -->
+    <script>
+        // Check if the browser supports Service Workers
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                // Register the sw.js file to handle offline caching
+                navigator.serviceWorker.register('sw.js').then(reg => {
+                    console.log('ServiceWorker registration successful:', reg.scope);
+                }).catch(err => {
+                    console.log('ServiceWorker registration failed:', err);
+                });
+            });
         }
     </script>
 </body>
+
 </html>
