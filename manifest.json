@@ -1,0 +1,21 @@
+{
+  "name": "Nonsenseian Transaction Parser",
+  "short_name": "Tx Parser",
+  "description": "Smart, offline-capable transaction parser and budget tool.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#111827",
+  "theme_color": "#111827",
+  "icons": [
+    {
+      "src": "https://nonsenseian.github.io/nonsenseian_logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://nonsenseian.github.io/nonsenseian_logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
